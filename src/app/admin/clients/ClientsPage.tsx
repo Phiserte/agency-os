@@ -1,0 +1,616 @@
+"use client"
+
+import { useState, useId } from "react"
+import { useRouter }        from "next/navigation"
+import {
+  Plus, Trash2, Edit3, ExternalLink, Users,
+  CheckCircle2, AlertTriangle, Copy, Check,
+  ChevronRight, LayoutDashboard, CheckSquare,
+  BarChart3, LogOut,
+} from "lucide-react"
+
+const T = {
+  bg0:         "#080C14",
+  bg1:         "#0D1321",
+  bg2:         "#111827",
+  bg3:         "#1A2238",
+  card:        "#141B2D",
+  cardHover:   "#1C2540",
+  border:      "rgba(255,255,255,0.07)",
+  borderHover: "rgba(255,255,255,0.14)",
+  violet:      "#7C3AED",
+  violetLight: "#A78BFA",
+  violetDim:   "rgba(124,58,237,0.15)",
+  cyan:        "#06B6D4",
+  cyanLight:   "#67E8F9",
+  cyanDim:     "rgba(6,182,212,0.12)",
+  emerald:     "#10B981",
+  emeraldLight:"#6EE7B7",
+  emeraldDim:  "rgba(16,185,129,0.12)",
+  amber:       "#F59E0B",
+  amberLight:  "#FCD34D",
+  amberDim:    "rgba(245,158,11,0.12)",
+  rose:        "#F43F5E",
+  roseDim:     "rgba(244,63,94,0.12)",
+  t1:          "#F8FAFC",
+  t2:          "#94A3B8",
+  t3:          "#475569",
+}
+
+interface ClientData {
+  id: string; name: string; email: string; company: string
+  createdAt: string
+  tasks: { total: number; done: number; high: number }
+}
+
+interface Props {
+  clients: ClientData[]
+}
+
+const AV_BG = [T.violetDim, T.cyanDim, T.emeraldDim, T.amberDim, T.roseDim]
+const AV_FG = [T.violetLight, T.cyanLight, T.emeraldLight, T.amberLight, T.rose]
+
+function Avatar({ name, size = 36 }: { name: string; size?: number }) {
+  const i = (name?.charCodeAt(0) ?? 65) % AV_BG.length
+  const parts = (name ?? "?").trim().split(" ")
+  const initials = parts.length === 1
+    ? parts[0].slice(0, 2).toUpperCase()
+    : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%",
+      background: AV_BG[i], border: `1px solid ${AV_FG[i]}44`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: Math.floor(size * 0.36), fontWeight: 700,
+      color: AV_FG[i], fontFamily: "monospace", flexShrink: 0,
+    }}>
+      {initials}
+    </div>
+  )
+}
+
+// NAV
+const NAV = [
+  { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/admin/tasks",     icon: CheckSquare,      label: "Tasks" },
+  { href: "/admin/clients",   icon: Users,            label: "Clients" },
+  { href: "/admin/reports",   icon: BarChart3,        label: "Reports" },
+]
+
+// INVITE MODAL
+function InviteModal({
+  onClose, onCreated
+}: {
+  onClose: () => void
+  onCreated: (client: ClientData & { tempPassword?: string }) => void
+}) {
+  const uid = useId()
+  const [name,     setName]     = useState("")
+  const [email,    setEmail]    = useState("")
+  const [company,  setCompany]  = useState("")
+  const [password, setPassword] = useState("")
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState("")
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+    try {
+      const res = await fetch("/api/admin/clients", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ name, email, company, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? "Failed to create client"); return }
+      onCreated(data)
+      onClose()
+    } catch {
+      setError("Something went wrong")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", background: T.bg3,
+    border: `1px solid ${T.border}`, borderRadius: 8,
+    padding: "8px 10px", color: T.t1, fontSize: 13,
+    fontFamily: "monospace", outline: "none", boxSizing: "border-box",
+  }
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11, color: T.t3, fontFamily: "monospace",
+    letterSpacing: "0.4px", display: "block", marginBottom: 5,
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)",
+        backdropFilter: "blur(4px)", display: "flex",
+        alignItems: "center", justifyContent: "center", zIndex: 50,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: T.card, border: `1px solid ${T.borderHover}`,
+          borderRadius: 16, padding: "24px",
+          width: 420, maxWidth: "calc(100vw - 32px)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: T.t1, margin: 0 }}>Invite Client</h2>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: T.t3, fontSize: 22, cursor: "pointer" }}>×</button>
+        </div>
+
+        {error && (
+          <div style={{
+            background: T.roseDim, border: `1px solid ${T.rose}44`,
+            borderRadius: 8, padding: "8px 12px", marginBottom: 16,
+            fontSize: 12, color: T.rose, fontFamily: "monospace",
+          }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label htmlFor={`${uid}-name`} style={labelStyle}>FULL NAME *</label>
+            <input id={`${uid}-name`} value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" required style={inputStyle}
+              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violetLight}
+              onBlur={e  => (e.target as HTMLInputElement).style.borderColor = T.border}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${uid}-email`} style={labelStyle}>EMAIL *</label>
+            <input id={`${uid}-email`} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@company.com" required style={inputStyle}
+              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violetLight}
+              onBlur={e  => (e.target as HTMLInputElement).style.borderColor = T.border}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${uid}-company`} style={labelStyle}>COMPANY</label>
+            <input id={`${uid}-company`} value={company} onChange={e => setCompany(e.target.value)} placeholder="Acme Corp" style={inputStyle}
+              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violetLight}
+              onBlur={e  => (e.target as HTMLInputElement).style.borderColor = T.border}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${uid}-pass`} style={labelStyle}>
+              TEMPORARY PASSWORD
+              <span style={{ color: T.t3, marginLeft: 6 }}>(auto-generated if blank)</span>
+            </label>
+            <input id={`${uid}-pass`} type="text" value={password} onChange={e => setPassword(e.target.value)} placeholder="Leave blank to auto-generate" style={inputStyle}
+              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violetLight}
+              onBlur={e  => (e.target as HTMLInputElement).style.borderColor = T.border}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 4 }}>
+            <button type="button" onClick={onClose} style={{
+              background: "transparent", border: `1px solid ${T.border}`,
+              borderRadius: 8, padding: "8px 18px", color: T.t2,
+              fontSize: 13, cursor: "pointer", fontFamily: "monospace",
+            }}>
+              Cancel
+            </button>
+            <button type="submit" disabled={loading} style={{
+              background: loading ? T.violetDim : T.violet,
+              border: "none", borderRadius: 8, padding: "8px 20px",
+              color: "#fff", fontSize: 13, fontWeight: 600,
+              cursor: loading ? "not-allowed" : "pointer", fontFamily: "monospace",
+            }}>
+              {loading ? "Creating..." : "Create & Invite"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// CREDENTIALS MODAL — shown after client is created
+function CredentialsModal({
+  client, onClose
+}: {
+  client: ClientData & { tempPassword?: string }
+  onClose: () => void
+}) {
+  const [copiedEmail, setCopiedEmail] = useState(false)
+  const [copiedPass,  setCopiedPass]  = useState(false)
+
+  function copy(text: string, setCopied: (v: boolean) => void) {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const loginUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/login`
+    : "/login"
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+        backdropFilter: "blur(4px)", display: "flex",
+        alignItems: "center", justifyContent: "center", zIndex: 60,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: T.card, border: `1px solid ${T.emerald}44`,
+          borderRadius: 16, padding: "28px",
+          width: 420, maxWidth: "calc(100vw - 32px)",
+        }}
+      >
+        {/* Success header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: "50%",
+            background: T.emeraldDim, display: "flex",
+            alignItems: "center", justifyContent: "center",
+          }}>
+            <CheckCircle2 size={18} color={T.emeraldLight} strokeWidth={2} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: T.t1, margin: 0 }}>
+              Client created!
+            </h2>
+            <p style={{ fontSize: 12, color: T.t3, fontFamily: "monospace", margin: 0 }}>
+              Share these credentials with {client.name}
+            </p>
+          </div>
+        </div>
+
+        {/* Credentials */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          {[
+            { label: "Login URL",  value: loginUrl,          copied: false,      setCopied: () => {} },
+            { label: "Email",      value: client.email,      copied: copiedEmail, setCopied: setCopiedEmail },
+            { label: "Password",   value: client.tempPassword ?? "—", copied: copiedPass, setCopied: setCopiedPass },
+          ].map(({ label, value, copied, setCopied }) => (
+            <div key={label} style={{
+              background: T.bg1, border: `1px solid ${T.border}`,
+              borderRadius: 10, padding: "10px 14px",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}>
+              <div>
+                <div style={{ fontSize: 10, color: T.t3, fontFamily: "monospace", marginBottom: 3 }}>{label}</div>
+                <div style={{ fontSize: 13, color: T.t1, fontFamily: "monospace" }}>{value}</div>
+              </div>
+              <button
+                onClick={() => copy(value, setCopied)}
+                style={{
+                  background: copied ? T.emeraldDim : T.violetDim,
+                  border: `1px solid ${copied ? T.emerald : T.violet}44`,
+                  borderRadius: 7, padding: "5px 10px",
+                  color: copied ? T.emeraldLight : T.violetLight,
+                  fontSize: 11, cursor: "pointer", display: "flex",
+                  alignItems: "center", gap: 4, fontFamily: "monospace",
+                }}
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{
+          background: T.amberDim, border: `1px solid ${T.amber}33`,
+          borderRadius: 8, padding: "10px 14px", marginBottom: 20,
+          fontSize: 11, color: T.amberLight, fontFamily: "monospace",
+          display: "flex", gap: 8,
+        }}>
+          <AlertTriangle size={13} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+          Save this password now — it won&apos;t be shown again
+        </div>
+
+        <button
+          onClick={onClose}
+          style={{
+            width: "100%", background: T.violet, border: "none",
+            borderRadius: 10, padding: "10px",
+            color: "#fff", fontSize: 13, fontWeight: 600,
+            cursor: "pointer", fontFamily: "monospace",
+          }}
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// MAIN PAGE
+export default function ClientsPage({ clients: initial }: Props) {
+  const router = useRouter()
+  const [clients,     setClients]     = useState<ClientData[]>(initial)
+  const [showInvite,  setShowInvite]  = useState(false)
+  const [newClient,   setNewClient]   = useState<(ClientData & { tempPassword?: string }) | null>(null)
+  const [deletingId,  setDeletingId]  = useState<string | null>(null)
+  const [loggingOut,  setLoggingOut]  = useState(false)
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Remove ${name}? Their tasks will remain on the board but will be unlinked.`)) return
+    setDeletingId(id)
+    try {
+      const res = await fetch(`/api/admin/clients/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        setClients(prev => prev.filter(c => c.id !== id))
+      }
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    await fetch("/api/auth/logout", { method: "POST" })
+    router.push("/login")
+  }
+
+  const totalTasks = clients.reduce((s, c) => s + c.tasks.total, 0)
+  const totalDone  = clients.reduce((s, c) => s + c.tasks.done, 0)
+
+  return (
+    <div style={{
+      minHeight: "100vh", background: T.bg0,
+      fontFamily: "'Syne','DM Sans',system-ui,sans-serif", color: T.t1,
+    }}>
+
+      {/* NAVBAR */}
+      <nav style={{
+        position: "sticky", top: 0, zIndex: 40,
+        background: `${T.bg0}ee`, backdropFilter: "blur(12px)",
+        borderBottom: `1px solid ${T.border}`,
+        display: "flex", alignItems: "center",
+        padding: "0 32px", height: 56, gap: 0,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, marginRight: 36 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: T.violetDim, border: `1px solid ${T.violetLight}33`,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15,
+          }}>⚡</div>
+          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.3px" }}>Agency OS</span>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}>
+          {NAV.map(({ href, icon: Icon, label }) => {
+            const active = href === "/admin/clients"
+            return (
+              <button key={href} onClick={() => router.push(href)} style={{
+                display: "flex", alignItems: "center", gap: 7,
+                padding: "6px 14px", borderRadius: 8,
+                background: active ? T.violetDim : "transparent",
+                border: active ? `1px solid ${T.violet}44` : "1px solid transparent",
+                color: active ? T.violetLight : T.t3,
+                fontSize: 13, fontWeight: active ? 600 : 400,
+                cursor: "pointer", transition: "all 0.12s",
+              }}
+                onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = T.t2; (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)" } }}
+                onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = T.t3; (e.currentTarget as HTMLButtonElement).style.background = "transparent" } }}
+              >
+                <Icon size={14} strokeWidth={1.8} />{label}
+              </button>
+            )
+          })}
+        </div>
+
+        <button onClick={handleLogout} disabled={loggingOut} style={{
+          display: "flex", alignItems: "center", gap: 6,
+          background: "transparent", border: `1px solid ${T.border}`,
+          borderRadius: 8, padding: "6px 12px", color: T.t3,
+          fontSize: 12, cursor: "pointer", fontFamily: "monospace",
+        }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = T.roseDim; (e.currentTarget as HTMLButtonElement).style.color = T.rose; (e.currentTarget as HTMLButtonElement).style.borderColor = `${T.rose}55` }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = T.t3; (e.currentTarget as HTMLButtonElement).style.borderColor = T.border }}
+        >
+          <LogOut size={13} strokeWidth={1.8} />{loggingOut ? "..." : "Sign out"}
+        </button>
+      </nav>
+
+      <div style={{ padding: "36px 32px 56px" }}>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32 }}>
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: T.t1, margin: 0 }}>
+              Clients
+            </h1>
+            <p style={{ marginTop: 4, fontSize: 13, color: T.t3, fontFamily: "monospace" }}>
+              {clients.length} client{clients.length !== 1 ? "s" : ""} · {totalTasks} tasks assigned
+            </p>
+          </div>
+          <button
+            onClick={() => setShowInvite(true)}
+            style={{
+              display: "flex", alignItems: "center", gap: 7,
+              background: T.violet, border: "none", borderRadius: 10,
+              padding: "9px 18px", color: "#fff",
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+              fontFamily: "monospace",
+            }}
+          >
+            <Plus size={15} strokeWidth={2} /> Invite Client
+          </button>
+        </div>
+
+        {/* Summary stat cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 28 }}>
+          {[
+            { label: "Total Clients",  value: clients.length, color: T.violetLight, dim: T.violetDim,  icon: Users },
+            { label: "Tasks Assigned", value: totalTasks,     color: T.amberLight,  dim: T.amberDim,   icon: CheckSquare },
+            { label: "Tasks Done",     value: totalDone,       color: T.emeraldLight,dim: T.emeraldDim, icon: CheckCircle2 },
+          ].map(({ label, value, color, dim, icon: Icon }) => (
+            <div key={label} style={{
+              background: T.card, border: `1px solid ${T.border}`,
+              borderRadius: 14, padding: "18px 20px",
+              display: "flex", alignItems: "center", gap: 14,
+            }}>
+              <div style={{ width: 40, height: 40, borderRadius: 11, background: dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon size={19} color={color} strokeWidth={1.8} />
+              </div>
+              <div>
+                <p style={{ fontSize: 10, color: T.t3, fontFamily: "monospace", letterSpacing: "0.4px", margin: 0 }}>{label}</p>
+                <p style={{ fontSize: 26, fontWeight: 700, color, margin: "3px 0 0", letterSpacing: "-0.5px", lineHeight: 1 }}>{value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Client list */}
+        {clients.length === 0 ? (
+          <div style={{
+            textAlign: "center", padding: "80px 0",
+            border: `1px dashed ${T.border}`, borderRadius: 16,
+          }}>
+            <Users size={40} color={T.t3} strokeWidth={1.2} style={{ margin: "0 auto 14px" }} />
+            <p style={{ fontSize: 15, color: T.t2, margin: "0 0 6px" }}>No clients yet</p>
+            <p style={{ fontSize: 12, color: T.t3, fontFamily: "monospace", margin: "0 0 20px" }}>
+              Invite your first client to get started
+            </p>
+            <button
+              onClick={() => setShowInvite(true)}
+              style={{
+                background: T.violet, border: "none", borderRadius: 10,
+                padding: "9px 20px", color: "#fff",
+                fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "monospace",
+              }}
+            >
+              + Invite Client
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {clients.map(client => {
+              const pct = client.tasks.total === 0
+                ? 0
+                : Math.round((client.tasks.done / client.tasks.total) * 100)
+
+              return (
+                <div
+                  key={client.id}
+                  style={{
+                    background: T.card, border: `1px solid ${T.border}`,
+                    borderRadius: 14, padding: "18px 22px",
+                    display: "flex", alignItems: "center", gap: 16,
+                    transition: "all 0.12s",
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = T.cardHover; (e.currentTarget as HTMLDivElement).style.borderColor = T.borderHover }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = T.card; (e.currentTarget as HTMLDivElement).style.borderColor = T.border }}
+                >
+                  <Avatar name={client.name} size={42} />
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: T.t1 }}>{client.name}</span>
+                      {client.company && (
+                        <span style={{
+                          fontSize: 10, padding: "1px 8px", borderRadius: 20,
+                          background: T.cyanDim, color: T.cyanLight, fontFamily: "monospace",
+                        }}>
+                          {client.company}
+                        </span>
+                      )}
+                      {client.tasks.high > 0 && (
+                        <span style={{
+                          fontSize: 10, padding: "1px 8px", borderRadius: 20,
+                          background: T.roseDim, color: T.rose, fontFamily: "monospace",
+                          display: "flex", alignItems: "center", gap: 3,
+                        }}>
+                          <AlertTriangle size={9} strokeWidth={2.5} />
+                          {client.tasks.high} high prio
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 12, color: T.t3, fontFamily: "monospace", margin: "0 0 10px" }}>
+                      {client.email}
+                    </p>
+
+                    {/* Progress bar */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ flex: 1, maxWidth: 200, height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                        <div style={{
+                          width: `${pct}%`, height: "100%",
+                          background: pct === 100 ? T.emerald : `linear-gradient(90deg,${T.violet},${T.cyan})`,
+                          borderRadius: 2,
+                        }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: T.t2, fontFamily: "monospace" }}>
+                        {client.tasks.done}/{client.tasks.total} tasks · {pct}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <button
+                      onClick={() => router.push(`/admin/tasks?client=${client.id}`)}
+                      title="View tasks"
+                      style={{
+                        background: T.violetDim, border: `1px solid ${T.violet}33`,
+                        borderRadius: 8, padding: "7px 12px",
+                        color: T.violetLight, fontSize: 12,
+                        cursor: "pointer", fontFamily: "monospace",
+                        display: "flex", alignItems: "center", gap: 5,
+                        transition: "all 0.12s",
+                      }}
+                      onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = `${T.violet}30`}
+                      onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = T.violetDim}
+                    >
+                      <ExternalLink size={12} strokeWidth={1.8} /> View Tasks
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(client.id, client.name)}
+                      disabled={deletingId === client.id}
+                      title="Remove client"
+                      style={{
+                        background: "transparent", border: `1px solid ${T.border}`,
+                        borderRadius: 8, padding: "7px 10px",
+                        color: T.t3, cursor: "pointer",
+                        display: "flex", alignItems: "center",
+                        transition: "all 0.12s",
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = T.roseDim; (e.currentTarget as HTMLButtonElement).style.color = T.rose; (e.currentTarget as HTMLButtonElement).style.borderColor = `${T.rose}44` }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = T.t3; (e.currentTarget as HTMLButtonElement).style.borderColor = T.border }}
+                    >
+                      <Trash2 size={14} strokeWidth={1.8} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      {showInvite && (
+        <InviteModal
+          onClose={() => setShowInvite(false)}
+          onCreated={client => {
+            setClients(prev => [{ ...client, tasks: { total: 0, done: 0, high: 0 } }, ...prev])
+            setNewClient(client)
+          }}
+        />
+      )}
+
+      {newClient && (
+        <CredentialsModal
+          client={newClient}
+          onClose={() => setNewClient(null)}
+        />
+      )}
+    </div>
+  )
+}
