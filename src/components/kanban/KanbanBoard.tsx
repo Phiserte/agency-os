@@ -1,13 +1,32 @@
 "use client";
 
-import { useState, useRef, useCallback, useId, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import TaskDetailModal, { type TaskDetail } from "@/components/Taskdetailmodal";
+import { useState, useRef, useCallback, useId, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useTaskPolling, type Task as PollingTask } from "@/hooks/useTaskPolling"
 import {
-  LayoutDashboard, CheckSquare, Users, LogOut,
-  BarChart3, UserPlus, Bell, Plus, TrendingUp,
-  ChevronDown, Search,
-} from "lucide-react";
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCorners,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import type { Transform } from "@dnd-kit/utilities";
+import TaskDetailModal, { type TaskDetail } from "@/components/Taskdetailmodal";
+import Sidebar from "@/components/Sidebar"; // Added shared sidebar import
+import { Plus, TrendingUp, Search, Eye, Trash2, Loader2 } from "lucide-react";
 
 // ── Palette (matches DashboardPage) ──────────────────────────────────────────
 const P = {
@@ -31,11 +50,6 @@ const P = {
   blue:        "#3B82F6",
   blueDim:     "#EFF6FF",
   blueText:    "#1E40AF",
-  sidebar:     "#1E1B4B",
-  sidebarHov:  "#2D2A6A",
-  sidebarAct:  "#312E81",
-  sidebarText: "#C7D2FE",
-  sidebarMute: "#818CF8",
   bg:          "#F3F4F8",
   card:        "#FFFFFF",
   border:      "#E5E7EB",
@@ -105,14 +119,6 @@ const AV_COLORS = [
   { bg: P.greenDim,  color: P.greenText },
 ];
 
-const NAV = [
-  { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/admin/tasks",     icon: CheckSquare,      label: "Tasks" },
-  { href: "/admin/clients",   icon: Users,            label: "Clients" },
-  { href: "/admin/team",      icon: UserPlus,         label: "Team" },
-  { href: "/admin/reports",   icon: BarChart3,        label: "Reports" },
-];
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function toInitials(name?: string) {
   if (!name) return "?";
@@ -166,6 +172,12 @@ const DUE_COLORS = {
   none:    { color: P.textMute,  bg: "transparent" },
 };
 
+function transformToString(transform: Transform | null) {
+  if (!transform) return undefined;
+  const { x, y, scaleX, scaleY } = transform;
+  return `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) scaleX(${scaleX}) scaleY(${scaleY})`;
+}
+
 // ── Avatar ────────────────────────────────────────────────────────────────────
 function Avatar({ name, size=28 }: { name?: string; size?: number }) {
   const c = AV_COLORS[(name?.charCodeAt(0) ?? 65) % AV_COLORS.length];
@@ -185,12 +197,13 @@ function Avatar({ name, size=28 }: { name?: string; size?: number }) {
 // ── Task Card ─────────────────────────────────────────────────────────────────
 interface TaskCardProps {
   task: Task; dragging: boolean;
-  onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragEnd: () => void;
   onCardClick?: (task: Task) => void;
+  style?: React.CSSProperties;
+  attributes?: React.HTMLAttributes<HTMLDivElement>;
+  listeners?: React.HTMLAttributes<HTMLDivElement>;
 }
 
-function TaskCard({ task, dragging, onDragStart, onDragEnd, onCardClick }: TaskCardProps) {
+function TaskCard({ task, dragging, onCardClick, style, attributes, listeners }: TaskCardProps) {
   const p        = PRIORITY_CFG[task.priority] ?? PRIORITY_CFG.medium;
   const tags     = task.tags ?? [];
   const dueState = getDueState(task.due);
@@ -199,20 +212,22 @@ function TaskCard({ task, dragging, onDragStart, onDragEnd, onCardClick }: TaskC
 
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      {...attributes}
+      {...listeners}
       onClick={() => { if (!dragging) onCardClick?.(task); }}
       style={{
         background:   dragging ? "#F9FAFB" : P.card,
         border:       `1px solid ${dragging ? P.purple + "55" : P.border}`,
         borderRadius: 12,
         padding:      "14px 16px",
-        cursor:       "grab",
+        cursor:       dragging ? "grabbing" : "grab",
         opacity:      dragging ? 0.5 : 1,
         transition:   "all 0.12s",
         boxShadow:    dragging ? `0 0 0 2px ${P.purple}33` : "0 1px 3px rgba(0,0,0,0.06)",
         userSelect:   "none",
+        pointerEvents: dragging ? "none" : "auto",
+        touchAction:   "none",
+        ...style,
       }}
       onMouseEnter={e => {
         if (!dragging) {
@@ -320,38 +335,114 @@ function TaskCard({ task, dragging, onDragStart, onDragEnd, onCardClick }: TaskC
   );
 }
 
+function SortableTaskCard({ task, dragging, onCardClick }: {
+  task: Task; dragging: boolean; onCardClick: (task: Task) => void;
+}) {
+  const taskId = (task._id ?? task.id) as string;
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: taskId });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: transformToString(transform),
+        transition,
+      }}
+    >
+      <TaskCard
+        task={task}
+        dragging={dragging || isDragging}
+        onCardClick={onCardClick}
+        attributes={attributes}
+        listeners={listeners}
+      />
+    </div>
+  );
+}
+
 // ── Column ────────────────────────────────────────────────────────────────────
 interface ColumnProps {
   col: typeof COLUMNS[number]; tasks: Task[];
-  draggingId: string | null; isOver: boolean;
-  onDragStart: (taskId: string) => void; onDragEnd: () => void;
-  onDragEnter: (colId: ColumnId) => void; onDrop: (colId: ColumnId) => void;
+  activeTaskId: string | null; isOver: boolean;
   onAddClick: (colId: ColumnId) => void; onCardClick: (task: Task) => void;
+  doneCount: number;
+  onClearDone: () => void;
+  clearingDone: boolean;
 }
 
 function KanbanColumn({
-  col, tasks, draggingId, isOver,
-  onDragStart, onDragEnd, onDragEnter, onDrop, onAddClick, onCardClick,
+  col, tasks, activeTaskId, isOver,
+  onAddClick, onCardClick,
+  doneCount, onClearDone, clearingDone,
 }: ColumnProps) {
+  const { setNodeRef } = useDroppable({ id: col.id });
+  const taskIds = tasks.map(task => (task._id ?? task.id) as string);
+
   return (
-    <div style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column" }}>
+    <div
+      style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column" }}
+    >
       {/* Header */}
       <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginBottom: 12, padding: "0 2px",
+        display: "flex", alignItems: "center", gap: 8,
+        marginBottom: 12, padding: "0 2px", height: 26
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: col.dot }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: P.text, letterSpacing: "-0.2px" }}>
-            {col.label}
-          </span>
-          <span style={{
-            fontSize: 11, padding: "1px 8px", borderRadius: 20,
-            background: col.dim, color: col.textColor, fontWeight: 600,
-          }}>
-            {tasks.length}
-          </span>
-        </div>
+        <div style={{ width: 10, height: 10, borderRadius: "50%", background: col.dot }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: P.text, letterSpacing: "-0.2px" }}>
+          {col.label}
+        </span>
+        <span style={{
+          fontSize: 11, padding: "1px 8px", borderRadius: 20,
+          background: col.dim, color: col.textColor, fontWeight: 600,
+        }}>
+          {tasks.length}
+        </span>
+        <div style={{ flex: 1 }} />
+        {col.id === "done" && doneCount > 0 && (
+          <button
+            onClick={onClearDone}
+            disabled={clearingDone}
+            style={{
+              width: 26, height: 26, borderRadius: 7,
+              background: clearingDone ? P.redDim : P.card,
+              border: `1px solid ${clearingDone ? P.red + "44" : P.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: clearingDone ? "not-allowed" : "pointer",
+              color: clearingDone ? P.red : P.textMute,
+              transition: "all 0.12s",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+              marginRight: 4,
+            }}
+            onMouseEnter={e => {
+              if (!clearingDone) {
+                (e.currentTarget as HTMLButtonElement).style.background = P.redDim;
+                (e.currentTarget as HTMLButtonElement).style.borderColor = P.red;
+                (e.currentTarget as HTMLButtonElement).style.color = P.red;
+              }
+            }}
+            onMouseLeave={e => {
+              if (!clearingDone) {
+                (e.currentTarget as HTMLButtonElement).style.background = P.card;
+                (e.currentTarget as HTMLButtonElement).style.borderColor = P.border;
+                (e.currentTarget as HTMLButtonElement).style.color = P.textMute;
+              }
+            }}
+            title="Clear completed tasks"
+          >
+            {clearingDone ? (
+              <Loader2 size={13} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <Trash2 size={13} strokeWidth={2} color="currentColor" />
+            )}
+          </button>
+        )}
         <button
           onClick={() => onAddClick(col.id)}
           style={{
@@ -381,35 +472,30 @@ function KanbanColumn({
 
       {/* Drop zone */}
       <div
-        onDragEnter={e => { e.preventDefault(); onDragEnter(col.id); }}
-        onDragOver={e => e.preventDefault()}
-        onDrop={e => { e.preventDefault(); onDrop(col.id); }}
+        ref={setNodeRef}
         style={{
-          flex: 1, minHeight: 120,
+          flex: 1, minHeight: 200,
           borderRadius: 12,
           border: isOver ? `2px dashed ${col.dot}` : "2px dashed transparent",
           background: isOver ? col.dim : "transparent",
-          transition: "all 0.15s",
+          transition: "background 0.15s, border-color 0.15s",
           padding: isOver ? 8 : 0,
           display: "flex", flexDirection: "column", gap: 10,
         }}
       >
-        {tasks.map(task => {
-          const taskId = (task._id ?? task.id) as string;
-          return (
-            <TaskCard
-              key={taskId} task={task}
-              dragging={draggingId === taskId}
-              onDragStart={e => {
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("text/plain", taskId);
-                onDragStart(taskId);
-              }}
-              onDragEnd={onDragEnd}
-              onCardClick={onCardClick}
-            />
-          );
-        })}
+        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+          {tasks.map(task => {
+            const taskId = (task._id ?? task.id) as string;
+            return (
+              <SortableTaskCard
+                key={taskId}
+                task={task}
+                dragging={activeTaskId === taskId}
+                onCardClick={onCardClick}
+              />
+            );
+          })}
+        </SortableContext>
 
         {tasks.length === 0 && (
           <div
@@ -656,16 +742,19 @@ function Toast({ message, type, onDismiss }: { message: string; type: "error" | 
 // ── Main Board ────────────────────────────────────────────────────────────────
 export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskCreate }: KanbanBoardProps) {
   const [columns,      setColumns]      = useState(() => groupByColumn(propTasks));
-  const [draggingId,   setDraggingId]   = useState<string | null>(null);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskDetail | null>(null);
-  const [overCol,      setOverCol]      = useState<ColumnId | null>(null);
+  const [hoverColumn,  setHoverColumn]  = useState<ColumnId | null>(null);
   const [modalCol,     setModalCol]     = useState<ColumnId | null>(null);
   const [toast,        setToast]        = useState<{ message: string; type: "error" | "success" } | null>(null);
-  const [loggingOut,   setLoggingOut]   = useState(false);
   const [search,       setSearch]       = useState("");
-  const sourceColRef = useRef<ColumnId | null>(null);
-  const router   = useRouter();
-  const pathname = usePathname();
+  const [clearingDone, setClearingDone] = useState(false);
+  const [draggingTaskIds, setDraggingTaskIds] = useState<Set<string>>(new Set());
+  const router = useRouter();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // Track last synced IDs in a ref so we never read columns state inside the effect
   const lastSyncedRef = useRef<string>("");
@@ -682,319 +771,327 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
     setTimeout(() => setToast(null), 4000);
   }
 
-  async function handleLogout() {
-    setLoggingOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-  }
-
-  const handleDragStart = useCallback((taskId: string) => {
-    setDraggingId(taskId);
+  const findTaskColumn = useCallback((taskId: string, source = columns): ColumnId | null => {
     for (const col of COLUMNS) {
-      if (columns[col.id].some(t => ((t._id ?? t.id) as string) === taskId)) {
-        sourceColRef.current = col.id; break;
-      }
+      if (source[col.id].some(t => ((t._id ?? t.id) as string) === taskId)) return col.id;
     }
+    return null;
   }, [columns]);
 
-  const handleDragEnd = useCallback(() => {
-    setDraggingId(null); setOverCol(null); sourceColRef.current = null;
-  }, []);
+  const isColumnId = useCallback((id: string): id is ColumnId =>
+    COLUMNS.some(col => col.id === id), []);
 
-  const handleDrop = useCallback((targetColId: ColumnId) => {
-    const srcId = sourceColRef.current;
-    if (!draggingId || !srcId || srcId === targetColId || draggingId.startsWith("temp_")) {
-      setDraggingId(null); setOverCol(null); sourceColRef.current = null; return;
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const taskId = String(event.active.id);
+    setActiveTaskId(taskId);
+    setHoverColumn(findTaskColumn(taskId));
+    // Add to dragging set to prevent polling from updating it
+    setDraggingTaskIds(prev => new Set(prev).add(taskId));
+  }, [findTaskColumn]);
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const overId = event.over?.id ? String(event.over.id) : "";
+    if (!overId) {
+      setHoverColumn(null);
+      return;
     }
-    let movedTask: Task | undefined;
+    setHoverColumn(isColumnId(overId) ? overId : findTaskColumn(overId));
+  }, [findTaskColumn, isColumnId]);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const taskId = String(event.active.id);
+    const overId = event.over?.id ? String(event.over.id) : "";
+    const srcId = findTaskColumn(taskId);
+    const targetColId = overId
+      ? isColumnId(overId)
+        ? overId
+        : findTaskColumn(overId)
+      : null;
+
+    setActiveTaskId(null);
+    setHoverColumn(null);
+    // Remove from dragging set
+    setDraggingTaskIds(prev => {
+      const next = new Set(prev)
+      next.delete(taskId)
+      return next
+    });
+
+    if (!taskId || !srcId || !targetColId || taskId.startsWith("temp_")) return;
+
+    const previousColumns = columns;
+    const overIndex = isColumnId(overId)
+      ? columns[targetColId].length
+      : columns[targetColId].findIndex(t => ((t._id ?? t.id) as string) === overId);
+
+    if (srcId === targetColId) {
+      const oldIndex = columns[srcId].findIndex(t => ((t._id ?? t.id) as string) === taskId);
+      const newIndex = overIndex === -1 ? columns[srcId].length - 1 : overIndex;
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+      setColumns(prev => ({
+        ...prev,
+        [srcId]: arrayMove(prev[srcId], oldIndex, newIndex),
+      }));
+
+      apiPatchTask(taskId, { status: targetColId })
+        .then(() => { router.refresh(); })
+        .catch(err => {
+          setColumns(previousColumns);
+          showToast(`Couldn't save: ${(err as Error).message}`);
+        });
+      return;
+    }
+
     setColumns(prev => {
-      const src = [...prev[srcId]], dst = [...prev[targetColId]];
-      const idx = src.findIndex(t => ((t._id ?? t.id) as string) === draggingId);
-      if (idx === -1) return prev;
-      const [moved] = src.splice(idx, 1);
-      movedTask = moved; moved.status = targetColId; dst.push(moved);
+      const src = [...prev[srcId]];
+      const dst = [...prev[targetColId]];
+      const oldIndex = src.findIndex(t => ((t._id ?? t.id) as string) === taskId);
+      if (oldIndex === -1) return prev;
+      const [moved] = src.splice(oldIndex, 1);
+      const nextTask = { ...moved, status: targetColId };
+      const insertAt = overIndex === -1 ? dst.length : overIndex;
+      dst.splice(insertAt, 0, nextTask);
       return { ...prev, [srcId]: src, [targetColId]: dst };
     });
-    const taskId = draggingId;
-    setDraggingId(null); setOverCol(null); sourceColRef.current = null;
-    apiPatchTask(taskId, { status: targetColId })
-      .then(() => { onTaskMove?.(taskId, srcId, targetColId); router.refresh(); })
-      .catch(err => {
-        setColumns(prev => {
-          if (!movedTask) return prev;
-          return {
-            ...prev,
-            [srcId]: [...prev[srcId], { ...movedTask, status: srcId }],
-            [targetColId]: prev[targetColId].filter(t => ((t._id ?? t.id) as string) !== taskId),
-          };
-        });
-        showToast(`Couldn't save: ${(err as Error).message}`);
-      });
-  }, [draggingId, onTaskMove, router]);
 
-  const handleAddTask = useCallback((task: Task) => {
-    const colId = task.status ?? "backlog";
+    if (onTaskMove) {
+      onTaskMove(taskId, srcId, targetColId);
+    } else {
+      apiPatchTask(taskId, { status: targetColId })
+        .then(() => { router.refresh(); })
+        .catch(err => {
+          setColumns(previousColumns);
+          showToast(`Move failed: ${(err as Error).message}`);
+        });
+    }
+  }, [columns, findTaskColumn, isColumnId, onTaskMove, router]);
+
+  const handleCreateTask = useCallback((fields: Omit<Task, "id">) => {
+    if (onTaskCreate) {
+      onTaskCreate(fields);
+      return;
+    }
+
     const tempId = `temp_${Date.now()}`;
-    setColumns(prev => ({ ...prev, [colId]: [...prev[colId], { ...task, id: tempId }] }));
-    const { id: _, ...rest } = task;
-    apiCreateTask(rest)
-      .then(saved => {
-        setColumns(prev => ({
-          ...prev,
-          [colId]: prev[colId].map(t => ((t._id ?? t.id) as string) === tempId ? saved : t),
-        }));
-        onTaskCreate?.(saved);
+    
+    // Destructure with explicit casting to bypass the index signature's 'unknown' enforcement
+    const title = fields.title as string;
+    const priority = fields.priority as Priority;
+    const targetCol = (fields.status || "backlog") as ColumnId;
+
+    const localCopy: Task = {
+      ...fields,
+      id: tempId,
+      title,
+      priority,
+      status: targetCol,
+    };
+
+    setColumns(prev => ({
+      ...prev,
+      [targetCol]: [...(prev[targetCol] || []), localCopy]
+    }));
+
+    apiCreateTask(fields)
+      .then(() => {
+        showToast("Task created successfully", "success");
         router.refresh();
-        showToast("Task created", "success");
       })
       .catch(err => {
-        setColumns(prev => ({ ...prev, [colId]: prev[colId].filter(t => ((t._id ?? t.id) as string) !== tempId) }));
-        showToast(`Couldn't save: ${(err as Error).message}`);
+        setColumns(prev => ({
+          ...prev,
+          [targetCol]: (prev[targetCol] || []).filter(t => ((t._id ?? t.id) as string) !== tempId)
+        }));
+        showToast(`Creation failed: ${(err as Error).message}`);
       });
   }, [onTaskCreate, router]);
 
-  const totalTasks = Object.values(columns).reduce((s, a) => s + a.length, 0);
-  const doneTasks  = columns.done.length;
-  const pct        = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
-  const overdue    = Object.values(columns).flat()
-    .filter(t => getDueState(t.due) === "overdue" && t.status !== "done").length;
+  const handleClearDone = useCallback(async () => {
+    if (clearingDone) return;
+    
+    const doneTasks = columns.done;
+    if (doneTasks.length === 0) {
+      showToast("No completed tasks to clear", "error");
+      return;
+    }
 
-  // Filter columns by search
-  const filteredColumns = search.trim()
-    ? Object.fromEntries(
-        COLUMNS.map(col => [col.id, columns[col.id].filter(t =>
-          t.title.toLowerCase().includes(search.toLowerCase()) ||
-          (t.assignee ?? "").toLowerCase().includes(search.toLowerCase())
-        )])
-      ) as Record<ColumnId, Task[]>
-    : columns;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${doneTasks.length} completed task(s)? This action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+
+    setClearingDone(true);
+    try {
+      const deletePromises = doneTasks.map(task => 
+        fetch(`/api/tasks/${task._id ?? task.id}`, {
+          method: "DELETE",
+        })
+      );
+
+      const results = await Promise.all(deletePromises);
+      const failed = results.filter(r => !r.ok).length;
+
+      if (failed > 0) {
+        showToast(`Failed to delete ${failed} task(s)`, "error");
+      } else {
+        showToast(`Cleared ${doneTasks.length} completed task(s)`, "success");
+        router.refresh();
+      }
+    } catch (error) {
+      showToast("Failed to clear completed tasks", "error");
+    } finally {
+      setClearingDone(false);
+    }
+  }, [columns.done, clearingDone, router]);
+
+  // Handle task updates from polling
+  const handleTasksUpdate = useCallback((polledTasks: PollingTask[]) => {
+    setColumns(prevColumns => {
+      // If any tasks are being dragged, skip this update
+      if (draggingTaskIds.size > 0) {
+        return prevColumns
+      }
+
+      // Create a map of polled tasks by ID
+      const polledMap = new Map(polledTasks.map(t => [t.id, t]))
+      
+      // Create new columns object
+      const newColumns: Record<ColumnId, Task[]> = {
+        backlog: [],
+        todo: [],
+        inprogress: [],
+        review: [],
+        done: [],
+      }
+
+      // Process each column from polled data
+      for (const task of polledTasks) {
+        const colId = resolveColumn(task)
+        newColumns[colId].push(task as Task)
+      }
+
+      return newColumns
+    })
+  }, [draggingTaskIds])
+
+  // Set up polling for real-time updates
+  useTaskPolling({
+    draggingTaskIds,
+    onTasksUpdate: handleTasksUpdate,
+    interval: 6000,
+    enabled: true,
+  })
+
+  // Filter tasks locally based on search state
+  const filteredColumns = {
+    backlog: columns.backlog.filter(t => t.title.toLowerCase().includes(search.toLowerCase())),
+    todo: columns.todo.filter(t => t.title.toLowerCase().includes(search.toLowerCase())),
+    inprogress: columns.inprogress.filter(t => t.title.toLowerCase().includes(search.toLowerCase())),
+    review: columns.review.filter(t => t.title.toLowerCase().includes(search.toLowerCase())),
+    done: columns.done.filter(t => t.title.toLowerCase().includes(search.toLowerCase())),
+  };
+
+  const activeTask = activeTaskId
+    ? (columns.backlog.concat(columns.todo, columns.inprogress, columns.review, columns.done))
+        .find(t => ((t._id ?? t.id) as string) === activeTaskId)
+    : null;
 
   return (
-    <div style={{
-      display: "flex", height: "100vh",
-      background: P.bg, overflow: "hidden",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      color: P.text,
-    }}>
+    <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
+      {/* ── Working Shared Sidebar ── */}
+      <Sidebar />
 
-      {/* ── SIDEBAR ──────────────────────────────────────────────────────── */}
-      <aside style={{
-        width: 220, flexShrink: 0, background: P.sidebar,
-        display: "flex", flexDirection: "column", padding: "20px 12px",
+      {/* ── Kanban Board Container Track ── */}
+      <div style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        background: P.bg,
+        overflow: "hidden",
+        position: "relative",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        color: P.text,
+        minWidth: 0,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 8px", marginBottom: 28 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, background: P.purple,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: `0 0 0 3px ${P.purple}55`, fontSize: 17,
-          }}>⚡</div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", letterSpacing: "-0.2px" }}>Agency OS</div>
-            <div style={{ fontSize: 10, color: P.sidebarMute }}>Admin Portal</div>
-          </div>
-        </div>
-
-        <p style={{ fontSize: 10, fontWeight: 600, color: P.sidebarMute, letterSpacing: "1px", padding: "0 10px", marginBottom: 6 }}>MAIN</p>
-        {NAV.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href || (href === "/admin/tasks" && pathname?.includes("tasks"));
-          return (
-            <button key={href} onClick={() => router.push(href)} style={{
-              display: "flex", alignItems: "center", gap: 10,
-              width: "100%", padding: "9px 12px", borderRadius: 8, marginBottom: 2,
-              background: active ? P.sidebarAct : "transparent",
-              border: active ? `1px solid ${P.purple}66` : "1px solid transparent",
-              color: active ? "#fff" : P.sidebarText,
-              fontSize: 13, fontWeight: active ? 600 : 400,
-              cursor: "pointer", textAlign: "left", transition: "all 0.12s",
-            }}
-              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = P.sidebarHov; }}
-              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
-            >
-              <Icon size={15} strokeWidth={1.8} color={active ? "#fff" : P.sidebarMute} />
-              <span style={{ flex: 1 }}>{label}</span>
-              {label === "Tasks" && overdue > 0 && (
-                <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 20, background: P.red, color: "#fff", fontWeight: 600 }}>
-                  {overdue}
-                </span>
-              )}
-            </button>
-          );
-        })}
-
-        <p style={{ fontSize: 10, fontWeight: 600, color: P.sidebarMute, letterSpacing: "1px", padding: "0 10px", margin: "16px 0 6px" }}>SYSTEM</p>
-        <button style={{
-          display: "flex", alignItems: "center", gap: 10,
-          width: "100%", padding: "9px 12px", borderRadius: 8, marginBottom: 2,
-          background: "transparent", border: "1px solid transparent",
-          color: P.sidebarText, fontSize: 13, cursor: "pointer", textAlign: "left",
-        }}>
-          <Bell size={15} strokeWidth={1.8} color={P.sidebarMute} /> Notifications
-        </button>
-
-        <div style={{ flex: 1 }} />
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 14 }}>
-          <button
-            onClick={handleLogout} disabled={loggingOut}
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              width: "100%", padding: "8px 10px", borderRadius: 8,
-              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
-              color: P.sidebarText, fontSize: 12, cursor: "pointer", transition: "all 0.12s",
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = P.redDim; (e.currentTarget as HTMLButtonElement).style.color = P.red; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLButtonElement).style.color = P.sidebarText; }}
-          >
-            <LogOut size={13} strokeWidth={1.8} />
-            {loggingOut ? "Signing out..." : "Sign out"}
-          </button>
-        </div>
-      </aside>
-
-      {/* ── MAIN ─────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-        {/* Topbar */}
-        <header style={{
+        {/* Search Header Context */}
+        <div style={{
           display: "flex", alignItems: "center", gap: 14,
-          padding: "0 28px", height: 56, flexShrink: 0,
+          padding: "12px 28px", height: 56, flexShrink: 0,
           background: P.card, borderBottom: `1px solid ${P.border}`,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
         }}>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: "-0.3px" }}>Tasks</h1>
-            <p style={{ fontSize: 12, color: P.textSub, margin: 0 }}>
-              {doneTasks}/{totalTasks} completed · {pct}% done
-            </p>
-          </div>
-
-          {/* Search */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            background: P.bg, border: `1px solid ${P.border}`,
-            borderRadius: 10, padding: "7px 12px", width: 200,
-          }}>
-            <Search size={13} color={P.textMute} strokeWidth={1.8} />
+          <span style={{ fontSize: 16, fontWeight: 700, color: P.text, flex: 1 }}>Task Board</span>
+          <div style={{ position: "relative", width: 240 }}>
+            <Search size={14} color={P.textMute} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
             <input
-              value={search} onChange={e => setSearch(e.target.value)}
+              type="text"
               placeholder="Search tasks..."
-              style={{ border: "none", background: "transparent", fontSize: 13, color: P.text, outline: "none", width: "100%" }}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: "100%", padding: "6px 10px 6px 30px", fontSize: 12,
+                borderRadius: 8, border: `1px solid ${P.border}`, background: P.bg,
+                color: P.text, outline: "none", boxSizing: "border-box"
+              }}
             />
           </div>
+        </div>
 
-          {/* Progress pill */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            background: P.bg, border: `1px solid ${P.border}`,
-            borderRadius: 10, padding: "7px 14px",
-          }}>
-            <TrendingUp size={13} color={P.teal} strokeWidth={2} />
-            <div style={{ width: 80, height: 4, background: "#E5E7EB", borderRadius: 2, overflow: "hidden" }}>
-              <div style={{
-                width: `${pct}%`, height: "100%",
-                background: `linear-gradient(90deg, ${P.purple}, ${P.teal})`,
-                borderRadius: 2, transition: "width 0.3s",
-              }} />
-            </div>
-            <span style={{ fontSize: 12, color: P.textSub, fontWeight: 500, minWidth: 28 }}>{pct}%</span>
-          </div>
-
-          {/* New Task */}
-          <button
-            onClick={() => setModalCol("backlog")}
-            style={{
-              display: "flex", alignItems: "center", gap: 7,
-              background: P.purple, border: "none", borderRadius: 10,
-              padding: "8px 16px", color: "#fff", fontSize: 13,
-              fontWeight: 600, cursor: "pointer",
-              boxShadow: `0 2px 8px ${P.purple}44`,
-            }}
+        {/* Board Tracks Layout */}
+        <div style={{ flex: 1, overflowX: "auto", padding: "24px 28px 40px" }}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
           >
-            <Plus size={15} strokeWidth={2.5} /> New Task
-          </button>
+            <div style={{ display: "flex", gap: 20, height: "100%" }}>
+              {COLUMNS.map(col => (
+                <KanbanColumn
+                  key={col.id}
+                  col={col}
+                  tasks={filteredColumns[col.id]}
+                  activeTaskId={activeTaskId}
+                  isOver={hoverColumn === col.id}
+                  onAddClick={setModalCol}
+                  onCardClick={(t) => setSelectedTask(t as unknown as TaskDetail)}
+                  doneCount={columns.done.length}
+                  onClearDone={handleClearDone}
+                  clearingDone={clearingDone}
+                />
+              ))}
+            </div>
 
-          {/* Live badge */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            background: P.tealDim, border: `1px solid ${P.teal}33`,
-            borderRadius: 8, padding: "6px 12px",
-            fontSize: 12, color: P.tealText, fontWeight: 500,
-          }}>
-            <div style={{
-              width: 7, height: 7, borderRadius: "50%", background: P.teal,
-              boxShadow: `0 0 0 2px ${P.tealDim}`,
-            }} />
-            Live
-          </div>
-        </header>
-
-        {/* Board */}
-        <div
-          style={{
-            flex: 1, overflowX: "auto", overflowY: "hidden",
-            padding: "24px 28px", display: "flex", gap: 20, alignItems: "flex-start",
-          }}
-          onDragLeave={e => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverCol(null);
-          }}
-        >
-          {COLUMNS.map(col => (
-            <KanbanColumn
-              key={col.id} col={col}
-              tasks={filteredColumns[col.id]}
-              draggingId={draggingId}
-              isOver={overCol === col.id}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDragEnter={colId => setOverCol(colId)}
-              onDrop={handleDrop}
-              onAddClick={setModalCol}
-              onCardClick={task => setSelectedTask(task as TaskDetail)}
-            />
-          ))}
+            <DragOverlay dropAnimation={null}>
+              {activeTask ? <TaskCard task={activeTask} dragging={true} /> : null}
+            </DragOverlay>
+          </DndContext>
         </div>
       </div>
 
-      {/* Modals */}
+      {/* ── Modals & Toast Frameworks ── */}
       {modalCol && (
-        <AddTaskModal defaultCol={modalCol} onAdd={handleAddTask} onClose={() => setModalCol(null)} />
+        <AddTaskModal
+          defaultCol={modalCol}
+          onAdd={handleCreateTask}
+          onClose={() => setModalCol(null)}
+        />
       )}
 
       {selectedTask && (
         <TaskDetailModal
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
-          onStatusChange={(taskId, newStatus) => {
-            setColumns(prev => {
-              const updated = { ...prev };
-              for (const col of COLUMNS) {
-                const idx = updated[col.id].findIndex(t => ((t._id ?? t.id) as string) === taskId);
-                if (idx !== -1) {
-                  const task = { ...updated[col.id][idx], status: newStatus as ColumnId };
-                  updated[col.id] = updated[col.id].filter((_, i) => i !== idx);
-                  updated[newStatus as ColumnId] = [...updated[newStatus as ColumnId], task];
-                  break;
-                }
-              }
-              return updated;
-            });
-          }}
-          onProgressChange={(taskId, progress) => {
-            setColumns(prev => {
-              const updated = { ...prev };
-              for (const col of COLUMNS) {
-                const idx = updated[col.id].findIndex(t => ((t._id ?? t.id) as string) === taskId);
-                if (idx !== -1) {
-                  updated[col.id] = updated[col.id].map((t, i) => i === idx ? { ...t, progress } : t);
-                  break;
-                }
-              }
-              return updated;
-            });
-          }}
+          onStatusChange={() => router.refresh()}
+          onProgressChange={() => router.refresh()}
         />
       )}
 
-      {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
+      )}
     </div>
   );
 }

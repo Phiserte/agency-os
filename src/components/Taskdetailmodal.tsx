@@ -3,34 +3,32 @@
 import { useState, useEffect, useRef } from "react"
 import {
   X, Send, Clock, Tag, User, Calendar,
-  AlertTriangle, CheckCircle2, Loader2,
+  AlertTriangle, CheckCircle2, Loader2, Trash2,
 } from "lucide-react"
 
+// ── Strict Light Theme Palette ────────────────────────────────────────────────
 const T = {
-  bg0:         "#080C14",
-  bg1:         "#0D1321",
-  bg2:         "#111827",
-  bg3:         "#1A2238",
-  card:        "#141B2D",
-  border:      "rgba(255,255,255,0.07)",
-  borderHover: "rgba(255,255,255,0.14)",
-  violet:      "#7C3AED",
-  violetLight: "#A78BFA",
-  violetDim:   "rgba(124,58,237,0.15)",
-  cyan:        "#06B6D4",
-  cyanLight:   "#67E8F9",
-  cyanDim:     "rgba(6,182,212,0.12)",
-  emerald:     "#10B981",
-  emeraldLight:"#6EE7B7",
-  emeraldDim:  "rgba(16,185,129,0.12)",
-  amber:       "#F59E0B",
-  amberLight:  "#FCD34D",
-  amberDim:    "rgba(245,158,11,0.12)",
-  rose:        "#F43F5E",
-  roseDim:     "rgba(244,63,94,0.12)",
-  t1:          "#F8FAFC",
-  t2:          "#94A3B8",
-  t3:          "#475569",
+  bg0:         "rgba(17, 24, 39, 0.4)", // Light backdrop modal overlay dim
+  bg1:         "#F9FAFB",               // Off-white container segments
+  bg2:         "#FFFFFF",               // Pure white workspace surfaces
+  bg3:         "#F3F4F6",               // Input text background fields
+  card:        "#FFFFFF",               // Main modal paper surface
+  border:      "#E5E7EB",               // Default border line
+  borderHover: "#D1D5DB",               // Active state borders
+  purple:      "#534AB7",               // Theme purple
+  purpleLight: "#7C73E6", 
+  purpleDim:   "#EEEDFE", 
+  cyan:        "#0891B2", 
+  cyanDim:     "#E0F7FA", 
+  emerald:     "#059669", 
+  emeraldDim:  "#E6F4EA", 
+  amber:       "#D97706", 
+  amberDim:    "#FEF3C7", 
+  rose:        "#DC2626", 
+  roseDim:     "#FCEBEB", 
+  t1:          "#111827",               // Main heading charcoal ink
+  t2:          "#4B5563",               // Soft body text slate
+  t3:          "#9CA3AF",               // Light caption gray
 }
 
 export interface TaskDetail {
@@ -66,20 +64,20 @@ interface Props {
 
 const PRIORITY_CFG: Record<string, { label: string; color: string; dim: string }> = {
   high:   { label: "High",   color: T.rose,        dim: T.roseDim },
-  medium: { label: "Medium", color: T.amberLight,  dim: T.amberDim },
-  low:    { label: "Low",    color: T.t2,           dim: "rgba(148,163,184,0.12)" },
+  medium: { label: "Medium", color: T.amber,       dim: T.amberDim },
+  low:    { label: "Low",    color: T.t2,          dim: T.bg1 },
 }
 
 const STATUS_OPTIONS = [
-  { value: "backlog",    label: "Backlog",     color: T.t3 },
-  { value: "todo",       label: "To Do",       color: T.violetLight },
-  { value: "inprogress", label: "In Progress", color: T.amberLight },
-  { value: "review",     label: "Review",      color: T.cyanLight },
-  { value: "done",       label: "Done",        color: T.emeraldLight },
+  { value: "backlog",    label: "Backlog",     color: T.t2 },
+  { value: "todo",       label: "To Do",       color: T.purple },
+  { value: "inprogress", label: "In Progress", color: T.amber },
+  { value: "review",     label: "Review",      color: T.cyan },
+  { value: "done",       label: "Done",        color: T.emerald },
 ]
 
-const AV_BG = [T.violetDim, T.cyanDim, T.emeraldDim, T.amberDim, T.roseDim]
-const AV_FG = [T.violetLight, T.cyanLight, T.emeraldLight, T.amberLight, T.rose]
+const AV_BG = [T.purpleDim, T.cyanDim, T.emeraldDim, T.amberDim, T.roseDim]
+const AV_FG = [T.purple, T.cyan, T.emerald, T.amber, T.rose]
 
 function Avatar({ name, size = 28 }: { name: string; size?: number }) {
   const i = (name?.charCodeAt(0) ?? 65) % AV_BG.length
@@ -90,10 +88,10 @@ function Avatar({ name, size = 28 }: { name: string; size?: number }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: "50%",
-      background: AV_BG[i], border: `1px solid ${AV_FG[i]}44`,
+      background: AV_BG[i], border: `1px solid ${AV_FG[i]}22`,
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: Math.floor(size * 0.36), fontWeight: 700,
-      color: AV_FG[i], fontFamily: "monospace", flexShrink: 0,
+      color: AV_FG[i], flexShrink: 0,
     }}>
       {initials}
     </div>
@@ -112,14 +110,14 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
 }
 
-function getDueWarning(due?: string): { label: string; color: string } | null {
+function getDueWarning(due?: string): { label: string; color: string; dim: string } | null {
   if (!due) return null
   const dueDate = new Date(due)
   if (isNaN(dueDate.getTime())) return null
   const diffDays = Math.ceil((dueDate.getTime() - Date.now()) / 86400000)
-  if (diffDays < 0)  return { label: `${Math.abs(diffDays)}d overdue`, color: T.rose }
-  if (diffDays === 0) return { label: "Due today",                       color: T.amberLight }
-  if (diffDays <= 3) return { label: `Due in ${diffDays}d`,             color: T.amberLight }
+  if (diffDays < 0)  return { label: `${Math.abs(diffDays)}d overdue`, color: T.rose, dim: T.roseDim }
+  if (diffDays === 0) return { label: "Due today",                       color: T.amber,  dim: T.amberDim }
+  if (diffDays <= 3) return { label: `Due in ${diffDays}d`,             color: T.amber,  dim: T.amberDim }
   return null
 }
 
@@ -135,13 +133,14 @@ export default function TaskDetailModal({
   const [status,       setStatus]       = useState(task.status)
   const [progress,     setProgress]     = useState(task.progress ?? 0)
   const [savingStatus, setSavingStatus] = useState(false)
+  const [deleting,     setDeleting]     = useState(false)
+  const [showConfirm,  setShowConfirm]  = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const p          = PRIORITY_CFG[task.priority] ?? PRIORITY_CFG.low
   const dueWarning = getDueWarning(task.due)
   const tags       = task.tags ?? []
 
-  // Fetch comments
   useEffect(() => {
     setLoadingCmts(true)
     fetch(`/api/tasks/${taskId}/comments`)
@@ -151,12 +150,10 @@ export default function TaskDetailModal({
       .finally(() => setLoadingCmts(false))
   }, [taskId])
 
-  // Scroll to bottom when comments load
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [comments])
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
     window.addEventListener("keydown", handler)
@@ -210,61 +207,82 @@ export default function TaskDetailModal({
     }
   }
 
+  async function handleDelete() {
+    if (deleting) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        onClose()
+        onStatusChange?.(taskId, status)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || "Failed to delete task")
+      }
+    } catch (error) {
+      alert("Failed to delete task. Please try again.")
+    } finally {
+      setDeleting(false)
+      setShowConfirm(false)
+    }
+  }
+
   const currentStatus = STATUS_OPTIONS.find(s => s.value === status)
 
   return (
-    /* Overlay */
+    /* Light Mode Translucent Backdrop Overlay */
     <div
       onClick={onClose}
       style={{
         position: "fixed", inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: T.bg0, 
         backdropFilter: "blur(4px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 100, padding: "20px 16px",
       }}
     >
-      {/* Modal */}
+      {/* Modal Canvas Box */}
       <div
         onClick={e => e.stopPropagation()}
         style={{
           background:   T.card,
-          border:       `1px solid ${T.borderHover}`,
-          borderRadius: 18,
+          border:       `1px solid ${T.border}`,
+          borderRadius: 16,
           width:        "100%",
           maxWidth:     820,
           maxHeight:    "90vh",
           display:      "flex",
           overflow:     "hidden",
+          boxShadow:    "0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03)",
         }}
       >
-        {/* LEFT — Task detail */}
+        {/* LEFT — Task Detail Panel */}
         <div style={{
           flex: 1, overflowY: "auto",
           padding: "28px 28px 24px",
           borderRight: `1px solid ${T.border}`,
           display: "flex", flexDirection: "column", gap: 20,
+          background: T.bg2,
         }}>
-          {/* Header */}
+          {/* Header row */}
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
             <div style={{ flex: 1 }}>
-              {/* Priority + due warning */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <span style={{
-                  fontSize: 10, padding: "2px 8px", borderRadius: 4,
-                  background: p.dim, color: p.color,
-                  fontFamily: "monospace", fontWeight: 600,
+                  fontSize: 11, padding: "2px 8px", borderRadius: 6,
+                  background: p.dim, color: p.color, fontWeight: 600,
                 }}>
                   {p.label}
                 </span>
                 {dueWarning && (
                   <span style={{
-                    fontSize: 10, padding: "2px 8px", borderRadius: 4,
-                    background: dueWarning.color === T.rose ? T.roseDim : T.amberDim,
-                    color: dueWarning.color, fontFamily: "monospace",
-                    display: "flex", alignItems: "center", gap: 4,
+                    fontSize: 11, padding: "2px 8px", borderRadius: 6,
+                    background: dueWarning.dim, color: dueWarning.color,
+                    fontWeight: 600, display: "flex", alignItems: "center", gap: 4,
                   }}>
-                    <AlertTriangle size={9} strokeWidth={2.5} />
+                    <AlertTriangle size={12} strokeWidth={2.5} />
                     {dueWarning.label}
                   </span>
                 )}
@@ -278,36 +296,55 @@ export default function TaskDetailModal({
               style={{
                 background: "transparent", border: "none",
                 color: T.t3, cursor: "pointer", padding: 4, flexShrink: 0,
+                transition: "color 0.1s"
               }}
               onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = T.t1}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = T.t3}
             >
-              <X size={20} strokeWidth={1.8} />
+              <X size={20} strokeWidth={2} />
             </button>
+            {!readOnly && (
+              <button
+                onClick={() => setShowConfirm(true)}
+                style={{
+                  background: "transparent", border: "none",
+                  color: T.rose, cursor: "pointer", padding: 4, flexShrink: 0,
+                  transition: "all 0.1s", marginLeft: 4
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = T.roseDim
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                }}
+                title="Delete task"
+              >
+                <Trash2 size={18} strokeWidth={2} />
+              </button>
+            )}
           </div>
 
-          {/* Description */}
+          {/* Description Container */}
           {task.description && (
             <p style={{
               fontSize: 13, color: T.t2, lineHeight: 1.6,
-              fontFamily: "monospace", margin: 0,
-              padding: "14px", background: T.bg1,
+              margin: 0, padding: "14px", background: T.bg1,
               borderRadius: 10, border: `1px solid ${T.border}`,
             }}>
               {task.description}
             </p>
           )}
 
-          {/* Meta grid */}
+          {/* Metadata Layout Matrix */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {/* Status */}
+            {/* Status Dropdown block */}
             <div style={{
               background: T.bg1, border: `1px solid ${T.border}`,
               borderRadius: 10, padding: "12px 14px",
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                <CheckCircle2 size={12} color={T.t3} strokeWidth={1.8} />
-                <span style={{ fontSize: 10, color: T.t3, fontFamily: "monospace", letterSpacing: "0.4px" }}>STATUS</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <CheckCircle2 size={13} color={T.t3} strokeWidth={2} />
+                <span style={{ fontSize: 10, color: T.t2, fontWeight: 700, letterSpacing: "0.5px" }}>STATUS</span>
               </div>
               {readOnly ? (
                 <span style={{ fontSize: 13, fontWeight: 600, color: currentStatus?.color ?? T.t2 }}>
@@ -334,33 +371,33 @@ export default function TaskDetailModal({
               )}
             </div>
 
-            {/* Assignee */}
+            {/* Assignee Card Block */}
             <div style={{
               background: T.bg1, border: `1px solid ${T.border}`,
               borderRadius: 10, padding: "12px 14px",
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                <User size={12} color={T.t3} strokeWidth={1.8} />
-                <span style={{ fontSize: 10, color: T.t3, fontFamily: "monospace", letterSpacing: "0.4px" }}>ASSIGNEE</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <User size={13} color={T.t3} strokeWidth={2} />
+                <span style={{ fontSize: 10, color: T.t2, fontWeight: 700, letterSpacing: "0.5px" }}>ASSIGNEE</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 {task.assignee
                   ? <><Avatar name={task.assignee} size={22} /><span style={{ fontSize: 13, color: T.t1, fontWeight: 600 }}>{task.assignee}</span></>
-                  : <span style={{ fontSize: 13, color: T.t3 }}>Unassigned</span>
+                  : <span style={{ fontSize: 13, color: T.t3, fontWeight: 500 }}>Unassigned</span>
                 }
               </div>
             </div>
 
-            {/* Due date */}
+            {/* Target Due Date Block */}
             <div style={{
-              background: T.bg1, border: `1px solid ${dueWarning ? dueWarning.color + "33" : T.border}`,
+              background: T.bg1, border: `1px solid ${dueWarning ? dueWarning.color + "22" : T.border}`,
               borderRadius: 10, padding: "12px 14px",
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                <Calendar size={12} color={T.t3} strokeWidth={1.8} />
-                <span style={{ fontSize: 10, color: T.t3, fontFamily: "monospace", letterSpacing: "0.4px" }}>DUE DATE</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <Calendar size={13} color={T.t3} strokeWidth={2} />
+                <span style={{ fontSize: 10, color: T.t2, fontWeight: 700, letterSpacing: "0.5px" }}>DUE DATE</span>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: dueWarning?.color ?? T.t2 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: dueWarning?.color ?? T.t1 }}>
                 {task.due
                   ? new Date(task.due).toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" })
                   : "No due date"
@@ -368,36 +405,36 @@ export default function TaskDetailModal({
               </span>
             </div>
 
-            {/* Created */}
+            {/* Calendar Log Trace */}
             <div style={{
               background: T.bg1, border: `1px solid ${T.border}`,
               borderRadius: 10, padding: "12px 14px",
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                <Clock size={12} color={T.t3} strokeWidth={1.8} />
-                <span style={{ fontSize: 10, color: T.t3, fontFamily: "monospace", letterSpacing: "0.4px" }}>CREATED</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <Clock size={13} color={T.t3} strokeWidth={2} />
+                <span style={{ fontSize: 10, color: T.t2, fontWeight: 700, letterSpacing: "0.5px" }}>CREATED</span>
               </div>
-              <span style={{ fontSize: 13, color: T.t2, fontFamily: "monospace" }}>
+              <span style={{ fontSize: 13, color: T.t1, fontWeight: 500 }}>
                 {task.createdAt ? timeAgo(task.createdAt) : "—"}
               </span>
             </div>
           </div>
 
-          {/* Progress */}
+          {/* Progress Interactive Tracker */}
           <div style={{
             background: T.bg1, border: `1px solid ${T.border}`,
             borderRadius: 10, padding: "14px",
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-              <span style={{ fontSize: 10, color: T.t3, fontFamily: "monospace", letterSpacing: "0.4px" }}>PROGRESS</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: progress === 100 ? T.emeraldLight : T.amberLight, fontFamily: "monospace" }}>
+              <span style={{ fontSize: 10, color: T.t2, fontWeight: 700, letterSpacing: "0.5px" }}>PROGRESS</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: progress === 100 ? T.emerald : T.purple }}>
                 {progress}%
               </span>
             </div>
-            <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 10 }}>
+            <div style={{ height: 6, background: "#E5E7EB", borderRadius: 3, overflow: "hidden", marginBottom: 10 }}>
               <div style={{
                 width: `${progress}%`, height: "100%",
-                background: progress === 100 ? T.emerald : `linear-gradient(90deg, ${T.violet}, ${T.cyan})`,
+                background: progress === 100 ? T.emerald : `linear-gradient(90deg, ${T.purple}, #3B82F6)`,
                 borderRadius: 3, transition: "width 0.3s",
               }} />
             </div>
@@ -406,31 +443,31 @@ export default function TaskDetailModal({
                 type="range" min={0} max={100} step={5}
                 value={progress}
                 onChange={e => handleProgressChange(Number(e.target.value))}
-                style={{ width: "100%", accentColor: T.violet, cursor: "pointer" }}
+                style={{ width: "100%", accentColor: T.purple, cursor: "pointer" }}
               />
             )}
           </div>
 
-          {/* Tags */}
+          {/* Tag Array Wrapper */}
           {tags.length > 0 && (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                <Tag size={12} color={T.t3} strokeWidth={1.8} />
-                <span style={{ fontSize: 10, color: T.t3, fontFamily: "monospace", letterSpacing: "0.4px" }}>TAGS</span>
+                <Tag size={13} color={T.t3} strokeWidth={2} />
+                <span style={{ fontSize: 10, color: T.t2, fontWeight: 700, letterSpacing: "0.5px" }}>TAGS</span>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {tags.map((tag, i) => {
                   const colors = [
-                    { color: T.violetLight, dim: T.violetDim },
-                    { color: T.cyanLight,   dim: T.cyanDim },
-                    { color: T.emeraldLight,dim: T.emeraldDim },
-                    { color: T.amberLight,  dim: T.amberDim },
+                    { color: T.purple,  dim: T.purpleDim },
+                    { color: T.cyan,    dim: T.cyanDim },
+                    { color: T.emerald, dim: T.emeraldDim },
+                    { color: T.amber,   dim: T.amberDim },
                   ]
                   const c = colors[i % colors.length]
                   return (
                     <span key={tag} style={{
                       fontSize: 11, padding: "3px 10px", borderRadius: 20,
-                      background: c.dim, color: c.color, fontFamily: "monospace",
+                      background: c.dim, color: c.color, fontWeight: 600,
                     }}>
                       {tag}
                     </span>
@@ -441,32 +478,33 @@ export default function TaskDetailModal({
           )}
         </div>
 
-        {/* RIGHT — Comments */}
+        {/* RIGHT — Chat Comment Stream */}
         <div style={{
           width: 320, flexShrink: 0,
           display: "flex", flexDirection: "column",
           background: T.bg1,
         }}>
-          {/* Comments header */}
+          {/* Section Sub-heading Banner */}
           <div style={{
             padding: "20px 20px 14px",
             borderBottom: `1px solid ${T.border}`,
+            background: T.bg2,
           }}>
-            <p style={{ fontSize: 11, color: T.t2, letterSpacing: "0.5px", textTransform: "uppercase", fontFamily: "monospace", margin: 0 }}>
+            <p style={{ fontSize: 11, color: T.t2, letterSpacing: "0.5px", textTransform: "uppercase", fontWeight: 700, margin: 0 }}>
               Comments {comments.length > 0 && `(${comments.length})`}
             </p>
           </div>
 
-          {/* Comment list */}
+          {/* Comment Scroller List */}
           <div style={{ flex: 1, overflowY: "auto", padding: "14px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
             {loadingCmts ? (
               <div style={{ display: "flex", justifyContent: "center", paddingTop: 24 }}>
-                <Loader2 size={18} color={T.t3} strokeWidth={1.8} style={{ animation: "spin 1s linear infinite" }} />
+                <Loader2 size={18} color={T.purple} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
               </div>
             ) : comments.length === 0 ? (
               <div style={{ textAlign: "center", paddingTop: 32 }}>
-                <p style={{ fontSize: 12, color: T.t3, fontFamily: "monospace", margin: 0 }}>No comments yet</p>
-                <p style={{ fontSize: 11, color: T.t3, fontFamily: "monospace", marginTop: 4 }}>Be the first to comment</p>
+                <p style={{ fontSize: 12, color: T.t2, fontWeight: 600, margin: 0 }}>No comments yet</p>
+                <p style={{ fontSize: 11, color: T.t3, marginTop: 4, margin: 0 }}>Be the first to speak out</p>
               </div>
             ) : (
               comments.map(c => (
@@ -477,22 +515,21 @@ export default function TaskDetailModal({
                       <span style={{ fontSize: 12, fontWeight: 600, color: T.t1 }}>{c.authorName}</span>
                       <span style={{
                         fontSize: 9, padding: "1px 6px", borderRadius: 20,
-                        background: c.authorRole === "admin" ? T.violetDim : T.cyanDim,
-                        color: c.authorRole === "admin" ? T.violetLight : T.cyanLight,
-                        fontFamily: "monospace",
+                        background: c.authorRole === "admin" ? T.purpleDim : T.cyanDim,
+                        color: c.authorRole === "admin" ? T.purple : T.cyan,
+                        fontWeight: 700, textTransform: "uppercase"
                       }}>
                         {c.authorRole}
                       </span>
-                      <span style={{ fontSize: 10, color: T.t3, fontFamily: "monospace", marginLeft: "auto" }}>
+                      <span style={{ fontSize: 10, color: T.t3, marginLeft: "auto" }}>
                         {timeAgo(c.createdAt)}
                       </span>
                     </div>
                     <div style={{
-                      fontSize: 12, color: T.t2, lineHeight: 1.5,
-                      background: "rgba(255,255,255,0.04)",
+                      fontSize: 12, color: T.t1, lineHeight: 1.5,
+                      background: T.bg2,
                       border: `1px solid ${T.border}`,
                       borderRadius: 8, padding: "8px 10px",
-                      fontFamily: "monospace",
                     }}>
                       {c.message}
                     </div>
@@ -503,12 +540,13 @@ export default function TaskDetailModal({
             <div ref={bottomRef} />
           </div>
 
-          {/* Comment input */}
+          {/* Interactive Text Input Footer */}
           <form
             onSubmit={handleSendComment}
             style={{
               padding: "14px 20px",
               borderTop: `1px solid ${T.border}`,
+              background: T.bg2,
               display: "flex", flexDirection: "column", gap: 8,
             }}
           >
@@ -518,31 +556,37 @@ export default function TaskDetailModal({
               onKeyDown={e => {
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSendComment(e as unknown as React.FormEvent)
               }}
-              placeholder="Add a comment... (Ctrl+Enter to send)"
+              placeholder="Add a comment... (Ctrl+Enter)"
               rows={3}
               style={{
                 width: "100%", background: T.bg3,
                 border: `1px solid ${T.border}`, borderRadius: 10,
                 padding: "9px 12px", color: T.t1, fontSize: 12,
-                fontFamily: "monospace", outline: "none",
-                resize: "none", boxSizing: "border-box",
-                transition: "border-color 0.15s",
+                outline: "none", resize: "none", boxSizing: "border-box",
+                transition: "all 0.15s",
               }}
-              onFocus={e => (e.target as HTMLTextAreaElement).style.borderColor = T.violetLight}
-              onBlur={e  => (e.target as HTMLTextAreaElement).style.borderColor = T.border}
+              onFocus={e => {
+                const el = e.target as HTMLTextAreaElement
+                el.style.borderColor = T.purple
+                el.style.backgroundColor = T.bg2
+              }}
+              onBlur={e  => {
+                const el = e.target as HTMLTextAreaElement
+                el.style.borderColor = T.border
+                el.style.backgroundColor = T.bg3
+              }}
             />
             <button
               type="submit"
               disabled={!message.trim() || sending}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                background: !message.trim() || sending ? T.violetDim : T.violet,
+                background: !message.trim() || sending ? T.purpleDim : T.purple,
                 border: "none", borderRadius: 8, padding: "8px 14px",
-                color: !message.trim() || sending ? T.violetLight : "#fff",
+                color: !message.trim() || sending ? T.purpleLight : "#fff",
                 fontSize: 12, fontWeight: 600,
                 cursor: !message.trim() || sending ? "not-allowed" : "pointer",
-                fontFamily: "monospace", transition: "all 0.15s",
-                alignSelf: "flex-end",
+                transition: "all 0.15s", alignSelf: "flex-end",
               }}
             >
               {sending
@@ -556,6 +600,96 @@ export default function TaskDetailModal({
       </div>
 
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
+
+      {/* Delete Confirmation Dialog */}
+      {showConfirm && (
+        <div
+          onClick={() => setShowConfirm(false)}
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 200,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: T.card,
+              border: `1px solid ${T.border}`,
+              borderRadius: 16,
+              padding: "24px",
+              width: "100%",
+              maxWidth: 400,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: "50%",
+                background: T.roseDim,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <AlertTriangle size={20} color={T.rose} strokeWidth={2} />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: T.t1, margin: 0 }}>
+                Delete Task
+              </h3>
+            </div>
+            <p style={{ fontSize: 13, color: T.t2, margin: "0 0 20px", lineHeight: 1.5 }}>
+              Are you sure you want to delete <strong>"{task.title}"</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowConfirm(false)}
+                disabled={deleting}
+                style={{
+                  background: T.bg1,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 8,
+                  padding: "9px 18px",
+                  color: T.t2,
+                  fontSize: 13,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                  fontWeight: 500,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{
+                  background: T.rose,
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "9px 18px",
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 size={14} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} strokeWidth={2} />
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

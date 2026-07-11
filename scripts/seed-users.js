@@ -27,8 +27,8 @@ const UserSchema = new mongoose.Schema(
 const User = mongoose.models.User ?? mongoose.model("User", UserSchema)
 
 const USERS = [
-  { name: "Agency Admin", email: "admin@agency.com",   password: "admin1234",  role: "admin",  company: "Agency OS" },
-  { name: "Test Client",  email: "client@example.com", password: "client1234", role: "client", company: "Acme Corp" },
+  
+  { name: "Tejas",  email: "tejas@example.com", password: "tejas1234", role: "client", company: "Acme Corp" },
 ]
 
 async function seed() {
@@ -51,6 +51,7 @@ async function seed() {
 }
 
 seed().catch(err => {
-  console.error("Seed failed:", err.message)
+  console.error("Seed failed:")
+  console.error(err)
   process.exit(1)
 })

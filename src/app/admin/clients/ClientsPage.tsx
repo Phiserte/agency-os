@@ -5,36 +5,37 @@ import { useRouter }        from "next/navigation"
 import {
   Plus, Trash2, Edit3, ExternalLink, Users,
   CheckCircle2, AlertTriangle, Copy, Check,
-  ChevronRight, LayoutDashboard, CheckSquare,
-  BarChart3, LogOut,
+  CheckSquare,
 } from "lucide-react"
+import Sidebar from "@/components/Sidebar"
 
+// ── Light palette (matches employee portal theme) ─────────────────────────────
 const T = {
-  bg0:         "#080C14",
-  bg1:         "#0D1321",
-  bg2:         "#111827",
-  bg3:         "#1A2238",
-  card:        "#141B2D",
-  cardHover:   "#1C2540",
-  border:      "rgba(255,255,255,0.07)",
-  borderHover: "rgba(255,255,255,0.14)",
-  violet:      "#7C3AED",
-  violetLight: "#A78BFA",
-  violetDim:   "rgba(124,58,237,0.15)",
-  cyan:        "#06B6D4",
-  cyanLight:   "#67E8F9",
-  cyanDim:     "rgba(6,182,212,0.12)",
-  emerald:     "#10B981",
-  emeraldLight:"#6EE7B7",
-  emeraldDim:  "rgba(16,185,129,0.12)",
-  amber:       "#F59E0B",
-  amberLight:  "#FCD34D",
-  amberDim:    "rgba(245,158,11,0.12)",
-  rose:        "#F43F5E",
-  roseDim:     "rgba(244,63,94,0.12)",
-  t1:          "#F8FAFC",
-  t2:          "#94A3B8",
-  t3:          "#475569",
+  bg0:         "#F8FAFC",
+  bg1:         "#F1F5F9",
+  bg2:         "#E2E8F0",
+  bg3:         "#F8FAFC",
+  card:        "#FFFFFF",
+  cardHover:   "#F8FAFC",
+  border:      "#E2E8F0",
+  borderHover: "#CBD5E1",
+  violet:      "#534AB7",
+  violetLight: "#3C3489",
+  violetDim:   "#EEEDFE",
+  cyan:        "#3B82F6",
+  cyanLight:   "#1E40AF",
+  cyanDim:     "#EFF6FF",
+  emerald:     "#1D9E75",
+  emeraldLight:"#085041",
+  emeraldDim:  "#E1F5EE",
+  amber:       "#EF9F27",
+  amberLight:  "#633806",
+  amberDim:    "#FAEEDA",
+  rose:        "#E24B4A",
+  roseDim:     "#FCEBEB",
+  t1:          "#0F172A",
+  t2:          "#475569",
+  t3:          "#94A3B8",
 }
 
 interface ClientData {
@@ -45,6 +46,7 @@ interface ClientData {
 
 interface Props {
   clients: ClientData[]
+  user?: { name?: string; email?: string; role: string }
 }
 
 const AV_BG = [T.violetDim, T.cyanDim, T.emeraldDim, T.amberDim, T.roseDim]
@@ -59,7 +61,7 @@ function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: "50%",
-      background: AV_BG[i], border: `1px solid ${AV_FG[i]}44`,
+      background: AV_BG[i], border: `1px solid ${AV_FG[i]}33`,
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: Math.floor(size * 0.36), fontWeight: 700,
       color: AV_FG[i], fontFamily: "monospace", flexShrink: 0,
@@ -68,14 +70,6 @@ function Avatar({ name, size = 36 }: { name: string; size?: number }) {
     </div>
   )
 }
-
-// NAV
-const NAV = [
-  { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/admin/tasks",     icon: CheckSquare,      label: "Tasks" },
-  { href: "/admin/clients",   icon: Users,            label: "Clients" },
-  { href: "/admin/reports",   icon: BarChart3,        label: "Reports" },
-]
 
 // INVITE MODAL
 function InviteModal({
@@ -114,7 +108,7 @@ function InviteModal({
   }
 
   const inputStyle: React.CSSProperties = {
-    width: "100%", background: T.bg3,
+    width: "100%", background: T.bg1,
     border: `1px solid ${T.border}`, borderRadius: 8,
     padding: "8px 10px", color: T.t1, fontSize: 13,
     fontFamily: "monospace", outline: "none", boxSizing: "border-box",
@@ -128,7 +122,7 @@ function InviteModal({
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)",
+        position: "fixed", inset: 0, background: "rgba(15,23,42,0.35)",
         backdropFilter: "blur(4px)", display: "flex",
         alignItems: "center", justifyContent: "center", zIndex: 50,
       }}
@@ -139,6 +133,7 @@ function InviteModal({
           background: T.card, border: `1px solid ${T.borderHover}`,
           borderRadius: 16, padding: "24px",
           width: 420, maxWidth: "calc(100vw - 32px)",
+          boxShadow: "0 20px 40px rgba(15,23,42,0.12)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
@@ -160,21 +155,21 @@ function InviteModal({
           <div>
             <label htmlFor={`${uid}-name`} style={labelStyle}>FULL NAME *</label>
             <input id={`${uid}-name`} value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" required style={inputStyle}
-              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violetLight}
+              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violet}
               onBlur={e  => (e.target as HTMLInputElement).style.borderColor = T.border}
             />
           </div>
           <div>
             <label htmlFor={`${uid}-email`} style={labelStyle}>EMAIL *</label>
             <input id={`${uid}-email`} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@company.com" required style={inputStyle}
-              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violetLight}
+              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violet}
               onBlur={e  => (e.target as HTMLInputElement).style.borderColor = T.border}
             />
           </div>
           <div>
             <label htmlFor={`${uid}-company`} style={labelStyle}>COMPANY</label>
             <input id={`${uid}-company`} value={company} onChange={e => setCompany(e.target.value)} placeholder="Acme Corp" style={inputStyle}
-              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violetLight}
+              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violet}
               onBlur={e  => (e.target as HTMLInputElement).style.borderColor = T.border}
             />
           </div>
@@ -184,7 +179,7 @@ function InviteModal({
               <span style={{ color: T.t3, marginLeft: 6 }}>(auto-generated if blank)</span>
             </label>
             <input id={`${uid}-pass`} type="text" value={password} onChange={e => setPassword(e.target.value)} placeholder="Leave blank to auto-generate" style={inputStyle}
-              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violetLight}
+              onFocus={e => (e.target as HTMLInputElement).style.borderColor = T.violet}
               onBlur={e  => (e.target as HTMLInputElement).style.borderColor = T.border}
             />
           </div>
@@ -236,7 +231,7 @@ function CredentialsModal({
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+        position: "fixed", inset: 0, background: "rgba(15,23,42,0.4)",
         backdropFilter: "blur(4px)", display: "flex",
         alignItems: "center", justifyContent: "center", zIndex: 60,
       }}
@@ -247,6 +242,7 @@ function CredentialsModal({
           background: T.card, border: `1px solid ${T.emerald}44`,
           borderRadius: 16, padding: "28px",
           width: 420, maxWidth: "calc(100vw - 32px)",
+          boxShadow: "0 20px 40px rgba(15,23,42,0.14)",
         }}
       >
         {/* Success header */}
@@ -329,13 +325,12 @@ function CredentialsModal({
 }
 
 // MAIN PAGE
-export default function ClientsPage({ clients: initial }: Props) {
+export default function ClientsPage({ clients: initial, user }: Props) {
   const router = useRouter()
   const [clients,     setClients]     = useState<ClientData[]>(initial)
   const [showInvite,  setShowInvite]  = useState(false)
   const [newClient,   setNewClient]   = useState<(ClientData & { tempPassword?: string }) | null>(null)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
-  const [loggingOut,  setLoggingOut]  = useState(false)
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Remove ${name}? Their tasks will remain on the board but will be unlinked.`)) return
@@ -350,12 +345,6 @@ export default function ClientsPage({ clients: initial }: Props) {
     }
   }
 
-  async function handleLogout() {
-    setLoggingOut(true)
-    await fetch("/api/auth/logout", { method: "POST" })
-    router.push("/login")
-  }
-
   const totalTasks = clients.reduce((s, c) => s + c.tasks.total, 0)
   const totalDone  = clients.reduce((s, c) => s + c.tasks.done, 0)
 
@@ -363,61 +352,12 @@ export default function ClientsPage({ clients: initial }: Props) {
     <div style={{
       minHeight: "100vh", background: T.bg0,
       fontFamily: "'Syne','DM Sans',system-ui,sans-serif", color: T.t1,
+      display: "flex",
     }}>
 
-      {/* NAVBAR */}
-      <nav style={{
-        position: "sticky", top: 0, zIndex: 40,
-        background: `${T.bg0}ee`, backdropFilter: "blur(12px)",
-        borderBottom: `1px solid ${T.border}`,
-        display: "flex", alignItems: "center",
-        padding: "0 32px", height: 56, gap: 0,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 9, marginRight: 36 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 8,
-            background: T.violetDim, border: `1px solid ${T.violetLight}33`,
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15,
-          }}>⚡</div>
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.3px" }}>Agency OS</span>
-        </div>
+      <Sidebar user={user} />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}>
-          {NAV.map(({ href, icon: Icon, label }) => {
-            const active = href === "/admin/clients"
-            return (
-              <button key={href} onClick={() => router.push(href)} style={{
-                display: "flex", alignItems: "center", gap: 7,
-                padding: "6px 14px", borderRadius: 8,
-                background: active ? T.violetDim : "transparent",
-                border: active ? `1px solid ${T.violet}44` : "1px solid transparent",
-                color: active ? T.violetLight : T.t3,
-                fontSize: 13, fontWeight: active ? 600 : 400,
-                cursor: "pointer", transition: "all 0.12s",
-              }}
-                onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = T.t2; (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)" } }}
-                onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = T.t3; (e.currentTarget as HTMLButtonElement).style.background = "transparent" } }}
-              >
-                <Icon size={14} strokeWidth={1.8} />{label}
-              </button>
-            )
-          })}
-        </div>
-
-        <button onClick={handleLogout} disabled={loggingOut} style={{
-          display: "flex", alignItems: "center", gap: 6,
-          background: "transparent", border: `1px solid ${T.border}`,
-          borderRadius: 8, padding: "6px 12px", color: T.t3,
-          fontSize: 12, cursor: "pointer", fontFamily: "monospace",
-        }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = T.roseDim; (e.currentTarget as HTMLButtonElement).style.color = T.rose; (e.currentTarget as HTMLButtonElement).style.borderColor = `${T.rose}55` }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = T.t3; (e.currentTarget as HTMLButtonElement).style.borderColor = T.border }}
-        >
-          <LogOut size={13} strokeWidth={1.8} />{loggingOut ? "..." : "Sign out"}
-        </button>
-      </nav>
-
-      <div style={{ padding: "36px 32px 56px" }}>
+      <div style={{ flex: 1, minWidth: 0, padding: "36px 32px 56px" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32 }}>
@@ -454,6 +394,7 @@ export default function ClientsPage({ clients: initial }: Props) {
               background: T.card, border: `1px solid ${T.border}`,
               borderRadius: 14, padding: "18px 20px",
               display: "flex", alignItems: "center", gap: 14,
+              boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
             }}>
               <div style={{ width: 40, height: 40, borderRadius: 11, background: dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Icon size={19} color={color} strokeWidth={1.8} />
@@ -470,7 +411,7 @@ export default function ClientsPage({ clients: initial }: Props) {
         {clients.length === 0 ? (
           <div style={{
             textAlign: "center", padding: "80px 0",
-            border: `1px dashed ${T.border}`, borderRadius: 16,
+            border: `1px dashed ${T.border}`, borderRadius: 16, background: T.card,
           }}>
             <Users size={40} color={T.t3} strokeWidth={1.2} style={{ margin: "0 auto 14px" }} />
             <p style={{ fontSize: 15, color: T.t2, margin: "0 0 6px" }}>No clients yet</p>
@@ -503,9 +444,10 @@ export default function ClientsPage({ clients: initial }: Props) {
                     borderRadius: 14, padding: "18px 22px",
                     display: "flex", alignItems: "center", gap: 16,
                     transition: "all 0.12s",
+                    boxShadow: "0 1px 3px rgba(15,23,42,0.03)",
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = T.cardHover; (e.currentTarget as HTMLDivElement).style.borderColor = T.borderHover }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = T.card; (e.currentTarget as HTMLDivElement).style.borderColor = T.border }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = T.cardHover; (e.currentTarget as HTMLDivElement).style.borderColor = T.borderHover; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 14px rgba(15,23,42,0.06)" }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = T.card; (e.currentTarget as HTMLDivElement).style.borderColor = T.border; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 3px rgba(15,23,42,0.03)" }}
                 >
                   <Avatar name={client.name} size={42} />
 
@@ -538,7 +480,7 @@ export default function ClientsPage({ clients: initial }: Props) {
 
                     {/* Progress bar */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ flex: 1, maxWidth: 200, height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ flex: 1, maxWidth: 200, height: 4, background: T.bg1, borderRadius: 2, overflow: "hidden" }}>
                         <div style={{
                           width: `${pct}%`, height: "100%",
                           background: pct === 100 ? T.emerald : `linear-gradient(90deg,${T.violet},${T.cyan})`,
@@ -564,7 +506,7 @@ export default function ClientsPage({ clients: initial }: Props) {
                         display: "flex", alignItems: "center", gap: 5,
                         transition: "all 0.12s",
                       }}
-                      onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = `${T.violet}30`}
+                      onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = `${T.violet}22`}
                       onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = T.violetDim}
                     >
                       <ExternalLink size={12} strokeWidth={1.8} /> View Tasks

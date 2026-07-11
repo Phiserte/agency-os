@@ -1,19 +1,19 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useRouter, usePathname }       from "next/navigation"
+import { useRouter,}                    from "next/navigation"
+import Link                             from "next/link"
 import {
-  LayoutDashboard, CheckSquare, Users, LogOut,
-  BarChart3, Settings, Bell, Search, TrendingUp,
-  TrendingDown, CheckCircle2, Clock, AlertCircle,
-  UserPlus, ChevronDown, ArrowUpDown, Eye,
+  CheckSquare, Users, Settings, Bell, Search,
+  TrendingUp, TrendingDown, CheckCircle2, Clock,
+  AlertCircle, ChevronDown, ArrowUpDown, Eye,
   ChevronLeft, ChevronRight, Calendar, Tag,
 } from "lucide-react"
+import Sidebar from "@/components/Sidebar" // Added shared light theme sidebar import
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const P = {
   purple:      "#534AB7",
-  purpleHover: "#4339A0",
   purpleLight: "#AFA9EC",
   purpleDim:   "#EEEDFE",
   purpleText:  "#3C3489",
@@ -26,14 +26,6 @@ const P = {
   red:         "#E24B4A",
   redDim:      "#FCEBEB",
   redText:     "#791F1F",
-  green:       "#639922",
-  greenDim:    "#EAF3DE",
-  greenText:   "#27500A",
-  sidebar:     "#1E1B4B",
-  sidebarHov:  "#2D2A6A",
-  sidebarAct:  "#312E81",
-  sidebarText: "#C7D2FE",
-  sidebarMute: "#818CF8",
   bg:          "#F3F4F8",
   card:        "#FFFFFF",
   border:      "#E5E7EB",
@@ -54,7 +46,7 @@ const STATUS_CFG: Record<string, { label: string; bg: string; color: string; dot
 const PRIORITY_CFG: Record<string, { label: string; bg: string; color: string }> = {
   high:   { label: "High",   bg: P.redDim,   color: P.redText },
   medium: { label: "Medium", bg: P.amberDim, color: P.amberText },
-  low:    { label: "Low",    bg: P.greenDim, color: P.greenText },
+  low:    { label: "Low",    bg: "#EAF3DE",  color: "#27500A" },
 }
 
 const AV_COLORS = [
@@ -62,15 +54,7 @@ const AV_COLORS = [
   { bg: P.tealDim,   color: P.tealText },
   { bg: P.amberDim,  color: P.amberText },
   { bg: P.redDim,    color: P.redText },
-  { bg: P.greenDim,  color: P.greenText },
-]
-
-const NAV = [
-  { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/admin/tasks",     icon: CheckSquare,      label: "Tasks" },
-  { href: "/admin/clients",   icon: Users,            label: "Clients" },
-  { href: "/admin/team",      icon: UserPlus,         label: "Team" },
-  { href: "/admin/reports",   icon: BarChart3,        label: "Reports" },
+  { bg: "#EAF3DE",   color: "#27500A" },
 ]
 
 interface Task {
@@ -244,20 +228,12 @@ export default function DashboardPage({
   teamCount, clientCount, chart,
   dateStr, greet, nowISO, user,
 }: Props) {
-  const router   = useRouter()
-  const pathname = usePathname()
+  const router = useRouter()
 
   const [search,         setSearch]         = useState("")
   const [page,           setPage]           = useState(1)
-  const [loggingOut,     setLoggingOut]     = useState(false)
   const [statusFilter,   setStatusFilter]   = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
-
-  async function handleLogout() {
-    setLoggingOut(true)
-    await fetch("/api/auth/logout", { method: "POST" })
-    router.push("/login")
-  }
 
   const filtered = tableTasks.filter(t => {
     const q = search.toLowerCase()
@@ -283,115 +259,18 @@ export default function DashboardPage({
   ).length
 
   return (
-    <div style={{
-      display: "flex", height: "100vh",
-      background: P.bg, overflow: "hidden",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      color: P.text,
-    }}>
+    <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
+      {/* ── Working Shared Light Sidebar ── */}
+      <Sidebar />
 
-      {/* ── SIDEBAR ──────────────────────────────────────────────────────────── */}
-      <aside style={{
-        width: 220, flexShrink: 0,
-        background: P.sidebar,
-        display: "flex", flexDirection: "column",
-        padding: "20px 12px",
+      {/* ── Dashboard Page Track Container ── */}
+      <div style={{
+        flex: 1, display: "flex", flexDirection: "column",
+        background: P.bg, overflow: "hidden",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        color: P.text,
+        minWidth: 0,
       }}>
-        {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 8px", marginBottom: 28 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: P.purple,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: `0 0 0 3px ${P.purple}55`,
-          }}>
-            <span style={{ fontSize: 17 }}>⚡</span>
-          </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", letterSpacing: "-0.2px" }}>Agency OS</div>
-            <div style={{ fontSize: 10, color: P.sidebarMute }}>Admin Portal</div>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <p style={{ fontSize: 10, fontWeight: 600, color: P.sidebarMute, letterSpacing: "1px", padding: "0 10px", marginBottom: 6 }}>MAIN</p>
-        {NAV.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href
-          return (
-            <button
-              key={href}
-              onClick={() => router.push(href)}
-              style={{
-                display: "flex", alignItems: "center", gap: 10,
-                width: "100%", padding: "9px 12px", borderRadius: 8, marginBottom: 2,
-                background: active ? P.sidebarAct : "transparent",
-                border: active ? `1px solid ${P.purple}66` : "1px solid transparent",
-                color: active ? "#fff" : P.sidebarText,
-                fontSize: 13, fontWeight: active ? 600 : 400,
-                cursor: "pointer", textAlign: "left", transition: "all 0.12s",
-              }}
-              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = P.sidebarHov }}
-              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
-            >
-              <Icon size={15} strokeWidth={1.8} color={active ? "#fff" : P.sidebarMute} />
-              <span style={{ flex: 1 }}>{label}</span>
-              {label === "Tasks" && overdue > 0 && (
-                <span style={{
-                  fontSize: 9, padding: "1px 6px", borderRadius: 20,
-                  background: P.red, color: "#fff", fontWeight: 600,
-                }}>{overdue}</span>
-              )}
-            </button>
-          )
-        })}
-
-        <p style={{ fontSize: 10, fontWeight: 600, color: P.sidebarMute, letterSpacing: "1px", padding: "0 10px", margin: "16px 0 6px" }}>SYSTEM</p>
-        {[{ icon: Bell, label: "Notifications" }, { icon: Settings, label: "Settings" }].map(({ icon: Icon, label }) => (
-          <button key={label} style={{
-            display: "flex", alignItems: "center", gap: 10,
-            width: "100%", padding: "9px 12px", borderRadius: 8, marginBottom: 2,
-            background: "transparent", border: "1px solid transparent",
-            color: P.sidebarText, fontSize: 13, cursor: "pointer", textAlign: "left", transition: "all 0.12s",
-          }}
-            onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = P.sidebarHov}
-            onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "transparent"}
-          >
-            <Icon size={15} strokeWidth={1.8} color={P.sidebarMute} />{label}
-          </button>
-        ))}
-
-        <div style={{ flex: 1 }} />
-
-        {/* Profile */}
-        <div style={{ borderTop: `1px solid rgba(255,255,255,0.1)`, paddingTop: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 4px", marginBottom: 10 }}>
-            <Avatar name={user.name} size={32} />
-            <div style={{ flex: 1, overflow: "hidden" }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.name}</div>
-              <div style={{ fontSize: 10, color: P.sidebarMute }}>Administrator</div>
-            </div>
-            <ChevronDown size={12} color={P.sidebarMute} strokeWidth={1.8} />
-          </div>
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              width: "100%", padding: "8px 10px", borderRadius: 8,
-              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
-              color: P.sidebarText, fontSize: 12, cursor: "pointer", transition: "all 0.12s",
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = P.redDim; (e.currentTarget as HTMLButtonElement).style.color = P.red }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLButtonElement).style.color = P.sidebarText }}
-          >
-            <LogOut size={13} strokeWidth={1.8} />
-            {loggingOut ? "Signing out..." : "Sign out"}
-          </button>
-        </div>
-      </aside>
-
-      {/* ── MAIN ─────────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* Topbar */}
         <header style={{
@@ -702,7 +581,7 @@ export default function DashboardPage({
               </div>
             </div>
 
-            {/* Table */}
+          {/* Table */}
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: P.bg }}>
@@ -722,173 +601,53 @@ export default function DashboardPage({
                 </tr>
               </thead>
               <tbody>
-                {pageRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: "center", padding: "40px", color: P.textMute, fontSize: 13 }}>
-                      No tasks match your filters
+                {pageRows.map((t) => (
+                  <tr 
+                    key={t.id} 
+                    style={{ 
+                      borderBottom: `1px solid ${P.border}`,
+                      transition: "background 0.1s ease",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "#FAFAFA"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
+                    <td style={{ padding: "12px 16px", fontSize: 12, color: P.textMute }}>{t.id.slice(-4)}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 500, color: P.text }}>{t.title}</td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <Pill {...(STATUS_CFG[t.status] || STATUS_CFG.backlog)} />
+                    </td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <Pill {...(PRIORITY_CFG[t.priority] || PRIORITY_CFG.low)} />
+                    </td>
+                    <td style={{ padding: "12px 16px", fontSize: 13, color: P.textSub }}>{t.assignee || "Unassigned"}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 12, color: P.textSub }}>{t.due ? new Date(t.due).toLocaleDateString("en-IN") : "-"}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 12, color: P.textSub }}>{timeAgo(t.updatedAt, nowISO)}</td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <Link 
+                        href="/admin/tasks"
+                        style={{ 
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 28,
+                          height: 28,
+                          borderRadius: 6,
+                          background: "transparent", 
+                          border: "none", 
+                          cursor: "pointer",
+                          transition: "background 0.15s",
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = P.purpleDim}
+                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                      >
+                        <Eye size={14} color={P.purple} />
+                      </Link>
                     </td>
                   </tr>
-                ) : pageRows.map((task, i) => {
-                  const sc  = STATUS_CFG[task.status]     ?? STATUS_CFG.backlog
-                  const pc  = PRIORITY_CFG[task.priority] ?? PRIORITY_CFG.medium
-                  const due = getDueWarning(task.due, nowISO)
-                  return (
-                    <tr
-                      key={task.id}
-                      style={{ transition: "background 0.1s" }}
-                      onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = P.bg}
-                      onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = "transparent"}
-                    >
-                      <td style={{
-                        padding: "11px 16px", fontSize: 11,
-                        color: P.textMute, fontWeight: 600,
-                        borderBottom: i < pageRows.length - 1 ? `1px solid ${P.border}` : "none",
-                        fontFamily: "monospace",
-                      }}>
-                        #{task.id.slice(-4).toUpperCase()}
-                      </td>
-                      <td style={{ padding: "11px 16px", borderBottom: i < pageRows.length - 1 ? `1px solid ${P.border}` : "none", maxWidth: 200 }}>
-                        <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {task.title}
-                        </div>
-                        {task.tags?.length > 0 && (
-                          <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
-                            {task.tags.slice(0,2).map(tag => (
-                              <span key={tag} style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: P.purpleDim, color: P.purpleText }}>
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: "11px 16px", borderBottom: i < pageRows.length - 1 ? `1px solid ${P.border}` : "none" }}>
-                        <Pill label={sc.label} bg={sc.bg} color={sc.color} dot={sc.dot} />
-                      </td>
-                      <td style={{ padding: "11px 16px", borderBottom: i < pageRows.length - 1 ? `1px solid ${P.border}` : "none" }}>
-                        <Pill label={pc.label} bg={pc.bg} color={pc.color} />
-                      </td>
-                      <td style={{ padding: "11px 16px", borderBottom: i < pageRows.length - 1 ? `1px solid ${P.border}` : "none" }}>
-                        {task.assignee ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                            <Avatar name={task.assignee} size={22} />
-                            <span style={{ fontSize: 12, color: P.textSub, whiteSpace: "nowrap" }}>
-                              {task.assignee.split(" ")[0]}
-                            </span>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: 12, color: P.textMute }}>—</span>
-                        )}
-                      </td>
-                      <td style={{ padding: "11px 16px", borderBottom: i < pageRows.length - 1 ? `1px solid ${P.border}` : "none", whiteSpace: "nowrap" }}>
-                        {due ? (
-                          <span style={{ fontSize: 11, color: due.color, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                            <AlertCircle size={11} strokeWidth={2.5} /> {due.label}
-                          </span>
-                        ) : task.due ? (
-                          <span style={{ fontSize: 11, color: P.textSub }}>
-                            {new Date(task.due).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
-                          </span>
-                        ) : (
-                          <span style={{ color: P.textMute }}>—</span>
-                        )}
-                      </td>
-                      <td style={{ padding: "11px 16px", borderBottom: i < pageRows.length - 1 ? `1px solid ${P.border}` : "none", fontSize: 11, color: P.textMute, whiteSpace: "nowrap" }}>
-                        {timeAgo(task.updatedAt, nowISO)}
-                      </td>
-                      <td style={{ padding: "11px 16px", borderBottom: i < pageRows.length - 1 ? `1px solid ${P.border}` : "none" }}>
-                        <div style={{ display: "flex", gap: 4 }}>
-                          <button
-                            onClick={() => router.push("/admin/tasks")}
-                            style={{
-                              fontSize: 11, color: P.purple, fontWeight: 600,
-                              background: P.purpleDim, border: "none",
-                              borderRadius: 6, padding: "4px 10px", cursor: "pointer",
-                            }}
-                          >
-                            View
-                          </button>
-                          <button
-                            onClick={() => router.push("/admin/tasks")}
-                            style={{
-                              fontSize: 11, color: P.textSub,
-                              background: P.bg, border: `1px solid ${P.border}`,
-                              borderRadius: 6, padding: "4px 10px", cursor: "pointer",
-                            }}
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
+                ))}
               </tbody>
             </table>
-
-            {/* Pagination */}
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "12px 20px", borderTop: `1px solid ${P.border}`,
-              background: P.bg,
-            }}>
-              <span style={{ fontSize: 12, color: P.textSub }}>
-                Showing <strong>{filtered.length === 0 ? 0 : (page-1)*PAGE_SIZE+1}</strong>–<strong>{Math.min(page*PAGE_SIZE, filtered.length)}</strong> of <strong>{filtered.length}</strong> tasks
-              </span>
-              <div style={{ display: "flex", gap: 4 }}>
-                <button
-                  onClick={() => setPage(p => Math.max(1,p-1))}
-                  disabled={page===1}
-                  style={{
-                    width: 30, height: 30, borderRadius: 8, border: `1px solid ${P.border}`,
-                    background: P.card, display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: page===1 ? "not-allowed" : "pointer", opacity: page===1 ? 0.4 : 1,
-                  }}
-                >
-                  <ChevronLeft size={13} color={P.textSub} strokeWidth={2} />
-                </button>
-                {Array.from({ length: Math.min(totalPages,5) }, (_,i) => {
-                  const pg = i+1
-                  return (
-                    <button key={pg} onClick={() => setPage(pg)} style={{
-                      width: 30, height: 30, borderRadius: 8,
-                      border: `1px solid ${page===pg ? P.purple : P.border}`,
-                      background: page===pg ? P.purple : P.card,
-                      color: page===pg ? "#fff" : P.textSub,
-                      fontSize: 12, fontWeight: page===pg ? 600 : 400,
-                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
-                      {pg}
-                    </button>
-                  )
-                })}
-                {totalPages > 5 && <>
-                  <span style={{ color: P.textMute, fontSize: 12, lineHeight: "30px", padding: "0 3px" }}>...</span>
-                  <button onClick={() => setPage(totalPages)} style={{
-                    width: 30, height: 30, borderRadius: 8,
-                    border: `1px solid ${page===totalPages ? P.purple : P.border}`,
-                    background: page===totalPages ? P.purple : P.card,
-                    color: page===totalPages ? "#fff" : P.textSub,
-                    fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {totalPages}
-                  </button>
-                </>}
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages,p+1))}
-                  disabled={page===totalPages}
-                  style={{
-                    width: 30, height: 30, borderRadius: 8, border: `1px solid ${P.border}`,
-                    background: P.card, display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: page===totalPages ? "not-allowed" : "pointer", opacity: page===totalPages ? 0.4 : 1,
-                  }}
-                >
-                  <ChevronRight size={13} color={P.textSub} strokeWidth={2} />
-                </button>
-              </div>
-            </div>
           </div>
-
-          <div style={{ height: 32 }} />
         </div>
       </div>
     </div>

@@ -10,10 +10,13 @@
     "seed": "node scripts/seed-users.js"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.3",
     "lucide-react": "^1.17.0",
-    "mongoose": "^9.7.0",
+    "mongoose": "^9.7.1",
     "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4"

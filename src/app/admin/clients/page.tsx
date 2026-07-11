@@ -49,5 +49,5 @@ export default async function Page() {
   if (!user || user.role !== "admin") redirect("/login")
 
   const clients = await getData()
-  return <ClientsPage clients={clients} />
+  return <ClientsPage clients={clients} user={{ name: user.name, email: user.email, role: user.role }} />
 }
