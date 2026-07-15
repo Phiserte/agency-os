@@ -60,7 +60,7 @@ const AV_COLORS = [
 interface Task {
   id: string; title: string; description: string
   priority: string; status: string; assignee: string
-  clientId?: string; tags: string[]; due: string
+  talentId?: string; tags: string[]; due: string
   progress: number; createdAt: string; updatedAt: string
 }
 
@@ -72,7 +72,7 @@ interface ActivityItem {
 interface Props {
   tasks: Task[]; tableTasks: Task[]; recentActivity: ActivityItem[]
   total: number; openTasks: number; doneThisWeek: number; lastMonthDone: number
-  teamCount: number; clientCount: number
+  teamCount: number; talentCount: number
   chart: { labels: string[]; created: number[]; completed: number[] }
   dateStr: string; greet: string; nowISO: string
   user: { name: string; email: string; role: string }
@@ -225,7 +225,7 @@ const PAGE_SIZE = 8
 export default function DashboardPage({
   tasks, tableTasks, recentActivity,
   total, openTasks, doneThisWeek, lastMonthDone,
-  teamCount, clientCount, chart,
+  teamCount, talentCount, chart,
   dateStr, greet, nowISO, user,
 }: Props) {
   const router = useRouter()
@@ -369,10 +369,10 @@ export default function DashboardPage({
                 onClick: () => router.push("/admin/tasks"),
               },
               {
-                label: "Clients", value: clientCount, icon: Users,
+                label: "Talents", value: talentCount, icon: Users,
                 accent: P.amber, accentDim: P.amberDim,
                 delta: `${teamCount} team member${teamCount !== 1 ? "s" : ""}`, up: true, sub: "active",
-                onClick: () => router.push("/admin/clients"),
+                onClick: () => router.push("/admin/talents"),
               },
             ].map(({ label, value, icon: Icon, accent, accentDim, delta, up, sub, onClick }) => (
               <div

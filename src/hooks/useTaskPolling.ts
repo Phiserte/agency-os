@@ -13,7 +13,7 @@ export interface Task {
   priority: Priority
   status: ColumnId
   assignee?: string
-  clientId?: string | null
+  talentId?: string | null
   tags?: string[]
   due?: string
   progress?: number
@@ -45,12 +45,13 @@ export function useTaskPolling({
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const visibilityHandlerRef = useRef<(() => void) | null>(null)
 
+  // Stabilize filterParams by content, not by object reference
+  const filterParamsKey = JSON.stringify(filterParams)
+
   const fetchTasks = useCallback(async () => {
     try {
-      // Build query string from filter params
       const queryString = new URLSearchParams(filterParams).toString()
       const url = `/api/tasks${queryString ? `?${queryString}` : ""}`
-      
       const response = await fetch(url, {
         headers: { "Cache-Control": "no-cache" },
       })
@@ -61,12 +62,11 @@ export function useTaskPolling({
 
       const tasks: Task[] = await response.json()
 
-      // Normalize task data (convert _id to string if needed)
       const normalizedTasks = tasks.map((task: any) => ({
         ...task,
         _id: task._id?.toString() ?? task.id,
         id: task._id?.toString() ?? task.id,
-        clientId: task.clientId?.toString() ?? task.clientId,
+        talentId: task.talentId?.toString() ?? task.talentId,
         createdAt: task.createdAt?.toISOString?.() ?? task.createdAt,
         updatedAt: task.updatedAt?.toISOString?.() ?? task.updatedAt,
       }))
@@ -75,27 +75,22 @@ export function useTaskPolling({
     } catch (error) {
       console.error("[useTaskPolling] Failed to fetch tasks:", error)
     }
-  }, [onTasksUpdate, filterParams])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onTasksUpdate, filterParamsKey])
 
   useEffect(() => {
     if (!enabled) return
 
-    // Initial fetch
     fetchTasks()
-
-    // Set up polling interval
     intervalRef.current = setInterval(fetchTasks, interval)
 
-    // Handle visibility change - pause when tab is hidden
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Tab is hidden - clear interval to save resources
         if (intervalRef.current) {
           clearInterval(intervalRef.current)
           intervalRef.current = null
         }
       } else {
-        // Tab is visible again - resume polling and fetch immediately
         if (!intervalRef.current) {
           fetchTasks()
           intervalRef.current = setInterval(fetchTasks, interval)
@@ -106,7 +101,6 @@ export function useTaskPolling({
     document.addEventListener("visibilitychange", handleVisibilityChange)
     visibilityHandlerRef.current = handleVisibilityChange
 
-    // Cleanup on unmount
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)

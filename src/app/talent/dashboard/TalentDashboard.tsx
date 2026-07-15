@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter }            from "next/navigation"
-import { useTaskPolling }       from "@/hooks/useTaskPolling"
 import {
   CheckCircle2, Clock3, AlertTriangle,
   CheckSquare, ChevronDown, ChevronUp,
@@ -13,6 +12,8 @@ import {
   DragEndEvent, PointerSensor, useSensor, useSensors,
 } from "@dnd-kit/core"
 import TaskDetailModal, { type TaskDetail } from "@/components/Taskdetailmodal"
+import { useTaskPolling, type Task as PollingTask } from "@/hooks/useTaskPolling"
+// Talent Dashboard - Read-only view for talents
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const P = {
@@ -39,7 +40,7 @@ const P = {
   textMute:    "#94A3B8",
 }
 
-const STATUS_ORDER = ["inprogress", "review", "todo", "backlog", "done"] as const
+const STATUS_ORDER = ["backlog", "todo", "inprogress", "review", "done"] as const
 
 const STATUS_CFG: Record<string, { label: string; color: string; dim: string; dot: string }> = {
   backlog:    { label: "Backlog",    color: P.textSub,    dim: "#E2E8F0",   dot: P.textMute },
@@ -464,20 +465,26 @@ export default function ClientDashboard({ tasks: initialTasks, user, dateStr, gr
     }
   }
 
-  // Handle task updates from polling
+  // Handle task updates from polling — memoized so identity stays stable
+  // across renders (draggingTaskIds only changes on actual drag start/end).
+  // This was the source of the polling loop: an inline arrow function here
+  // was recreated every render, which made useTaskPolling's internal
+  // fetchTasks unstable and retriggered the "initial fetch" on every render.
+  const handleTasksUpdate = useCallback((polledTasks: PollingTask[]) => {
+  setTasks(prevTasks => {
+    if (draggingTaskIds.size > 0) {
+      return prevTasks
+    }
+    return polledTasks as Task[]
+  })
+}, [draggingTaskIds])
+
+  // Set up polling for real-time updates
   const { refetch: _refetch } = useTaskPolling({
     draggingTaskIds,
-    onTasksUpdate: (polledTasks: any[]) => {
-      setTasks(prevTasks => {
-        // If any tasks are being dragged, skip this update
-        if (draggingTaskIds.size > 0) {
-          return prevTasks
-        }
-        return polledTasks as Task[]
-      })
-    },
+    onTasksUpdate: handleTasksUpdate,
     interval: 6000,
-    filterParams: { clientId: user.id }
+    filterParams: { talentId: user.id }
   })
 
   async function handleLogout() {
@@ -507,12 +514,12 @@ export default function ClientDashboard({ tasks: initialTasks, user, dateStr, gr
               width: 28, height: 28, borderRadius: 8, background: P.purpleDim,
               display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15,
             }}>⚡</div>
-            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.3px" }}>Agency OS</span>
+            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.3px" }}>Sahynex Core</span>
             <span style={{
               fontSize: 10, padding: "2px 8px", borderRadius: 20,
               background: P.purpleDim, color: P.purpleText, fontWeight: 600,
             }}>
-              Employee Portal
+              Talent Portal
             </span>
           </div>
 
@@ -713,6 +720,7 @@ export default function ClientDashboard({ tasks: initialTasks, user, dateStr, gr
                   Click any card to view details &amp; comments
                 </span>
               </div>
+
 
               <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
                 <div style={{

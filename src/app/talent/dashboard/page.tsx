@@ -1,14 +1,14 @@
-// src/app/client/dashboard/page.tsx
-// Server Component - fetches only tasks assigned to the logged-in client
+// src/app/talent/dashboard/page.tsx
+// Server Component - fetches only tasks assigned to the logged-in talent
 
 import { connectDB }      from "@/lib/db/mongoose"
 import { Task }           from "@/models/Task"
 import { getCurrentUser } from "@/lib/auth"
 import { redirect }       from "next/navigation"
-import ClientDashboard    from "./ClientDashboard"
+import TalentDashboard    from "./TalentDashboard"
 import Sidebar            from "@/components/Sidebar" // <-- IMPORT YOUR SIDEBAR HERE
 
-// Explicit interface to match exactly what ClientDashboard expects
+// Explicit interface to match exactly what TalentDashboard expects
 interface SerializedTask {
   id:          string
   title:       string
@@ -22,11 +22,11 @@ interface SerializedTask {
   createdAt:   string
 }
 
-async function getClientTasks(clientId: string): Promise<SerializedTask[]> {
+async function getTalentTasks(talentId: string): Promise<SerializedTask[]> {
   await connectDB()
 
-  // Fetches tasks linked directly to this client's ID
-  const tasks = await Task.find({ clientId })
+  // Fetches tasks linked directly to this talent's ID
+  const tasks = await Task.find({ talentId })
     .sort({ createdAt: -1 })
     .lean()
 
@@ -65,15 +65,15 @@ async function getClientTasks(clientId: string): Promise<SerializedTask[]> {
   })
 }
 
-export default async function ClientDashboardPage() {
+export default async function TalentDashboardPage() {
   const user = await getCurrentUser()
   
-  // Protect route — bounce if not authenticated or not a client account
-  if (!user || user.role !== "client") {
+  // Protect route — bounce if not authenticated or not a talent account
+  if (!user || user.role !== "talent") {
     redirect("/login")
   }
 
-  const tasks = await getClientTasks(user.id)
+  const tasks = await getTalentTasks(user.id)
 
   // Construct precise time frames to match the client-side rendering
   const now      = new Date()
@@ -91,10 +91,11 @@ export default async function ClientDashboardPage() {
 
       {/* 2. Main Area Content (scrollable if content overflows dashboard) */}
       <main style={{ flex: 1, overflowY: "auto", height: "100vh" }}>
-        <ClientDashboard
+        <TalentDashboard
           tasks={tasks}
           user={{
-            name:  user.name ?? "Client",
+            id:    user.id,
+            name:  user.name ?? "Talent",
             email: user.email ?? "",
             role:  user.role,
           }}

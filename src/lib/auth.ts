@@ -1,44 +1,16 @@
-import { SignJWT, jwtVerify } from "jose"
 import { cookies } from "next/headers"
-
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "change-this-secret-in-production"
-)
+import { signToken, verifyToken, JWTPayload } from "./jwt"
 
 const COOKIE_NAME = "auth_token"
-const MAX_AGE     = 60 * 60 * 24 * 7 // 7 days in seconds
+const MAX_AGE     = 60 * 60 * 24 * 7
 
-export interface JWTPayload {
-  id:    string
-  email: string
-  role:  "admin" | "client"
-  name:  string
-}
+export { signToken, verifyToken } from "./jwt"
+export type { JWTPayload } from "./jwt"
 
-// ─── Sign ─────────────────────────────────────────────────────────────────────
-export async function signToken(payload: JWTPayload): Promise<string> {
-  return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("7d")
-    .sign(SECRET)
-}
-
-// ─── Verify ───────────────────────────────────────────────────────────────────
-export async function verifyToken(token: string): Promise<JWTPayload | null> {
-  try {
-    const { payload } = await jwtVerify(token, SECRET)
-    return payload as unknown as JWTPayload
-  } catch {
-    return null
-  }
-}
-
-// ─── Set cookie ───────────────────────────────────────────────────────────────
 export async function setAuthCookie(token: string): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.set(COOKIE_NAME, token, {
-    httpOnly: true,   // not accessible via JS
+    httpOnly: true,
     secure:   process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge:   MAX_AGE,
@@ -46,13 +18,11 @@ export async function setAuthCookie(token: string): Promise<void> {
   })
 }
 
-// ─── Clear cookie ─────────────────────────────────────────────────────────────
 export async function clearAuthCookie(): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.delete(COOKIE_NAME)
 }
 
-// ─── Get current user from cookie ─────────────────────────────────────────────
 export async function getCurrentUser(): Promise<JWTPayload | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get(COOKIE_NAME)?.value

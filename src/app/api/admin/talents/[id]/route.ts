@@ -1,4 +1,4 @@
-// src/app/api/admin/clients/[id]/route.ts
+// src/app/api/admin/talents/[id]/route.ts
 import { NextResponse } from "next/server"
 import { connectDB }    from "@/lib/db/mongoose"
 import { User }         from "@/models/User"
@@ -19,7 +19,7 @@ async function requireAdmin() {
   return user
 }
 
-// PATCH /api/admin/clients/[id]
+// PATCH /api/admin/talents/[id]
 export async function PATCH(req: Request, context: RouteContext) {
   try {
     const admin = await requireAdmin()
@@ -53,7 +53,7 @@ export async function PATCH(req: Request, context: RouteContext) {
       { new: true, runValidators: true }
     ).select("-password").lean()
 
-    if (!updated) return NextResponse.json({ error: "Client not found" }, { status: 404 })
+    if (!updated) return NextResponse.json({ error: "Talent not found" }, { status: 404 })
 
     return NextResponse.json({
       id:      updated._id.toString(),
@@ -62,13 +62,13 @@ export async function PATCH(req: Request, context: RouteContext) {
       company: updated.company ?? "",
     }, { status: 200 })
   } catch (error) {
-    console.error("[PATCH /api/admin/clients/:id]", error)
-    return NextResponse.json({ error: "Failed to update client" }, { status: 500 })
+    console.error("[PATCH /api/admin/talents/:id]", error)
+    return NextResponse.json({ error: "Failed to update talent" }, { status: 500 })
   }
 }
 
-// DELETE /api/admin/clients/[id]
-// Also unlinks their tasks (sets clientId to null)
+// DELETE /api/admin/talents/[id]
+// Also unlinks their tasks (sets talentId to null)
 export async function DELETE(req: Request, context: RouteContext) {
   try {
     const admin = await requireAdmin()
@@ -78,14 +78,14 @@ export async function DELETE(req: Request, context: RouteContext) {
     const { id } = await context.params
 
     const deleted = await User.findByIdAndDelete(id).lean()
-    if (!deleted) return NextResponse.json({ error: "Client not found" }, { status: 404 })
+    if (!deleted) return NextResponse.json({ error: "Talent not found" }, { status: 404 })
 
     // Unlink their tasks so they don't disappear from the board
-    await Task.updateMany({ clientId: id }, { $set: { clientId: null } })
+    await Task.updateMany({ talentId: id }, { $set: { talentId: null } })
 
     return NextResponse.json({ success: true, id }, { status: 200 })
   } catch (error) {
-    console.error("[DELETE /api/admin/clients/:id]", error)
-    return NextResponse.json({ error: "Failed to delete client" }, { status: 500 })
+    console.error("[DELETE /api/admin/talents/:id]", error)
+    return NextResponse.json({ error: "Failed to delete talent" }, { status: 500 })
   }
 }

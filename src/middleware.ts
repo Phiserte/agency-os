@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { verifyToken } from "@/lib/auth"
+import { verifyToken } from "@/lib/jwt"
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -10,7 +10,7 @@ export async function middleware(req: NextRequest) {
   // ── Redirect logged-in users away from /login ──────────────────────────────
   if (pathname === "/login" || pathname === "/") {
     if (user) {
-      const dest = user.role === "admin" ? "/admin/dashboard" : "/client/dashboard"
+      const dest = user.role === "admin" ? "/admin/dashboard" : "/talent/dashboard"
       return NextResponse.redirect(new URL(dest, req.url))
     }
     return NextResponse.next()
@@ -22,19 +22,19 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/login", req.url))
     }
     if (user.role !== "admin") {
-      // Client trying to access admin — send to their dashboard
-      return NextResponse.redirect(new URL("/client/dashboard", req.url))
+      // Talent trying to access admin — send to their dashboard
+      return NextResponse.redirect(new URL("/talent/dashboard", req.url))
     }
     return NextResponse.next()
   }
 
-  // ── Protect /client routes — client only ───────────────────────────────────
-  if (pathname.startsWith("/client")) {
+  // ── Protect /talent routes — talent only ───────────────────────────────────
+  if (pathname.startsWith("/talent")) {
     if (!user) {
       return NextResponse.redirect(new URL("/login", req.url))
     }
-    if (user.role !== "client") {
-      // Admin trying to access client portal — send to their dashboard
+    if (user.role !== "talent") {
+      // Admin trying to access talent portal — send to their dashboard
       return NextResponse.redirect(new URL("/admin/dashboard", req.url))
     }
     return NextResponse.next()
@@ -48,6 +48,6 @@ export const config = {
     "/",
     "/login",
     "/admin/:path*",
-    "/client/:path*",
+    "/talent/:path*",
   ],
 }

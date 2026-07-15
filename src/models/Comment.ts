@@ -4,7 +4,7 @@ export interface IComment extends Document {
   taskId:     Types.ObjectId
   authorId:   Types.ObjectId
   authorName: string
-  authorRole: "admin" | "client"
+  authorRole: "admin" | "talent"
   message:    string
   createdAt:  Date
   updatedAt:  Date
@@ -30,7 +30,7 @@ const CommentSchema = new Schema<IComment>(
     },
     authorRole: {
       type:    String,
-      enum:    ["admin", "client"],
+      enum:    ["admin", "talent"],
       required: true,
     },
     message: {

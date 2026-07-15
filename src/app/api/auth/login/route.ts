@@ -65,7 +65,7 @@ export async function POST(req: Request) {
     await setAuthCookie(token)
 
     // Tell the client where to redirect based on role
-    const redirectTo = user.role === "admin" ? "/admin/dashboard" : "/client/dashboard"
+    const redirectTo = user.role === "admin" ? "/admin/dashboard" : "/talent/dashboard"
 
     return NextResponse.json(
       { success: true, role: user.role, redirectTo },

@@ -9,7 +9,7 @@ export interface ITask extends Document {
   priority:    Priority
   status:      Status
   assignee:    string
-  clientId:    Types.ObjectId | null  // links task to a client User
+  talentId:    Types.ObjectId | null  // links task to a talent User
   tags:        string[]
   due:         string                 // ISO date string e.g. "2025-06-10"
   progress:    number
@@ -51,7 +51,7 @@ const TaskSchema = new Schema<ITask>(
       trim:    true,
       default: "",
     },
-    clientId: {
+    talentId: {
       type:    mongoose.Schema.Types.ObjectId,
       ref:     "User",   // references the User model
       default: null,
@@ -74,8 +74,8 @@ const TaskSchema = new Schema<ITask>(
   { timestamps: true }
 )
 
-// Index so client dashboard queries are fast
-TaskSchema.index({ clientId: 1, status: 1 })
+// Index so talent dashboard queries are fast
+TaskSchema.index({ talentId: 1, status: 1 })
 TaskSchema.index({ due: 1, status: 1 })
 
 export const Task: Model<ITask> =

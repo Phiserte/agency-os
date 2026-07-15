@@ -38,14 +38,14 @@ const T = {
   t3:          "#94A3B8",
 }
 
-interface ClientData {
+interface TalentData {
   id: string; name: string; email: string; company: string
   createdAt: string
   tasks: { total: number; done: number; high: number }
 }
 
 interface Props {
-  clients: ClientData[]
+  talents: TalentData[]
   user?: { name?: string; email?: string; role: string }
 }
 
@@ -76,7 +76,7 @@ function InviteModal({
   onClose, onCreated
 }: {
   onClose: () => void
-  onCreated: (client: ClientData & { tempPassword?: string }) => void
+  onCreated: (talent: TalentData & { tempPassword?: string }) => void
 }) {
   const uid = useId()
   const [name,     setName]     = useState("")
@@ -91,13 +91,13 @@ function InviteModal({
     setError("")
     setLoading(true)
     try {
-      const res = await fetch("/api/admin/clients", {
+      const res = await fetch("/api/admin/talents", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ name, email, company, password }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error ?? "Failed to create client"); return }
+      if (!res.ok) { setError(data.error ?? "Failed to create talent"); return }
       onCreated(data)
       onClose()
     } catch {
@@ -207,11 +207,11 @@ function InviteModal({
   )
 }
 
-// CREDENTIALS MODAL — shown after client is created
+// CREDENTIALS MODAL — shown after talent is created
 function CredentialsModal({
-  client, onClose
+  talent, onClose
 }: {
-  client: ClientData & { tempPassword?: string }
+  talent: TalentData & { tempPassword?: string }
   onClose: () => void
 }) {
   const [copiedEmail, setCopiedEmail] = useState(false)
@@ -256,10 +256,10 @@ function CredentialsModal({
           </div>
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: T.t1, margin: 0 }}>
-              Client created!
+              Talent created!
             </h2>
             <p style={{ fontSize: 12, color: T.t3, fontFamily: "monospace", margin: 0 }}>
-              Share these credentials with {client.name}
+              Share these credentials with {talent.name}
             </p>
           </div>
         </div>
@@ -268,8 +268,8 @@ function CredentialsModal({
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
           {[
             { label: "Login URL",  value: loginUrl,          copied: false,      setCopied: () => {} },
-            { label: "Email",      value: client.email,      copied: copiedEmail, setCopied: setCopiedEmail },
-            { label: "Password",   value: client.tempPassword ?? "—", copied: copiedPass, setCopied: setCopiedPass },
+            { label: "Email",      value: talent.email,      copied: copiedEmail, setCopied: setCopiedEmail },
+            { label: "Password",   value: talent.tempPassword ?? "—", copied: copiedPass, setCopied: setCopiedPass },
           ].map(({ label, value, copied, setCopied }) => (
             <div key={label} style={{
               background: T.bg1, border: `1px solid ${T.border}`,
@@ -325,28 +325,28 @@ function CredentialsModal({
 }
 
 // MAIN PAGE
-export default function ClientsPage({ clients: initial, user }: Props) {
+export default function TalentsPage({ talents: initial, user }: Props) {
   const router = useRouter()
-  const [clients,     setClients]     = useState<ClientData[]>(initial)
+  const [talents,     setTalents]     = useState<TalentData[]>(initial)
   const [showInvite,  setShowInvite]  = useState(false)
-  const [newClient,   setNewClient]   = useState<(ClientData & { tempPassword?: string }) | null>(null)
+  const [newTalent,   setNewTalent]   = useState<(TalentData & { tempPassword?: string }) | null>(null)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Remove ${name}? Their tasks will remain on the board but will be unlinked.`)) return
     setDeletingId(id)
     try {
-      const res = await fetch(`/api/admin/clients/${id}`, { method: "DELETE" })
+      const res = await fetch(`/api/admin/talents/${id}`, { method: "DELETE" })
       if (res.ok) {
-        setClients(prev => prev.filter(c => c.id !== id))
+        setTalents(prev => prev.filter(t => t.id !== id))
       }
     } finally {
       setDeletingId(null)
     }
   }
 
-  const totalTasks = clients.reduce((s, c) => s + c.tasks.total, 0)
-  const totalDone  = clients.reduce((s, c) => s + c.tasks.done, 0)
+  const totalTasks = talents.reduce((s, t) => s + t.tasks.total, 0)
+  const totalDone  = talents.reduce((s, t) => s + t.tasks.done, 0)
 
   return (
     <div style={{
@@ -360,15 +360,15 @@ export default function ClientsPage({ clients: initial, user }: Props) {
       <div style={{ flex: 1, minWidth: 0, padding: "36px 32px 56px" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32 }}>
-          <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: T.t1, margin: 0 }}>
-              Clients
-            </h1>
-            <p style={{ marginTop: 4, fontSize: 13, color: T.t3, fontFamily: "monospace" }}>
-              {clients.length} client{clients.length !== 1 ? "s" : ""} · {totalTasks} tasks assigned
-            </p>
-          </div>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32 }}>
+            <div>
+              <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: T.t1, margin: 0 }}>
+                Talents
+              </h1>
+              <p style={{ marginTop: 4, fontSize: 13, color: T.t3, fontFamily: "monospace" }}>
+                {talents.length} talent{talents.length !== 1 ? "s" : ""} · {totalTasks} tasks assigned
+              </p>
+            </div>
           <button
             onClick={() => setShowInvite(true)}
             style={{
@@ -379,14 +379,14 @@ export default function ClientsPage({ clients: initial, user }: Props) {
               fontFamily: "monospace",
             }}
           >
-            <Plus size={15} strokeWidth={2} /> Invite Client
+            <Plus size={15} strokeWidth={2} /> Invite Talent
           </button>
         </div>
 
         {/* Summary stat cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 28 }}>
           {[
-            { label: "Total Clients",  value: clients.length, color: T.violetLight, dim: T.violetDim,  icon: Users },
+            { label: "Total Talents",  value: talents.length, color: T.violetLight, dim: T.violetDim,  icon: Users },
             { label: "Tasks Assigned", value: totalTasks,     color: T.amberLight,  dim: T.amberDim,   icon: CheckSquare },
             { label: "Tasks Done",     value: totalDone,       color: T.emeraldLight,dim: T.emeraldDim, icon: CheckCircle2 },
           ].map(({ label, value, color, dim, icon: Icon }) => (
@@ -407,16 +407,16 @@ export default function ClientsPage({ clients: initial, user }: Props) {
           ))}
         </div>
 
-        {/* Client list */}
-        {clients.length === 0 ? (
+        {/* Talent list */}
+        {talents.length === 0 ? (
           <div style={{
             textAlign: "center", padding: "80px 0",
             border: `1px dashed ${T.border}`, borderRadius: 16, background: T.card,
           }}>
             <Users size={40} color={T.t3} strokeWidth={1.2} style={{ margin: "0 auto 14px" }} />
-            <p style={{ fontSize: 15, color: T.t2, margin: "0 0 6px" }}>No clients yet</p>
+            <p style={{ fontSize: 15, color: T.t2, margin: "0 0 6px" }}>No talents yet</p>
             <p style={{ fontSize: 12, color: T.t3, fontFamily: "monospace", margin: "0 0 20px" }}>
-              Invite your first client to get started
+              Invite your first talent to get started
             </p>
             <button
               onClick={() => setShowInvite(true)}
@@ -426,19 +426,19 @@ export default function ClientsPage({ clients: initial, user }: Props) {
                 fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "monospace",
               }}
             >
-              + Invite Client
+              + Invite Talent
             </button>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {clients.map(client => {
-              const pct = client.tasks.total === 0
+            {talents.map(talent => {
+              const pct = talent.tasks.total === 0
                 ? 0
-                : Math.round((client.tasks.done / client.tasks.total) * 100)
+                : Math.round((talent.tasks.done / talent.tasks.total) * 100)
 
               return (
                 <div
-                  key={client.id}
+                  key={talent.id}
                   style={{
                     background: T.card, border: `1px solid ${T.border}`,
                     borderRadius: 14, padding: "18px 22px",
@@ -449,33 +449,33 @@ export default function ClientsPage({ clients: initial, user }: Props) {
                   onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = T.cardHover; (e.currentTarget as HTMLDivElement).style.borderColor = T.borderHover; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 14px rgba(15,23,42,0.06)" }}
                   onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = T.card; (e.currentTarget as HTMLDivElement).style.borderColor = T.border; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 3px rgba(15,23,42,0.03)" }}
                 >
-                  <Avatar name={client.name} size={42} />
+                  <Avatar name={talent.name} size={42} />
 
                   {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: T.t1 }}>{client.name}</span>
-                      {client.company && (
+                      <span style={{ fontSize: 14, fontWeight: 600, color: T.t1 }}>{talent.name}</span>
+                      {talent.company && (
                         <span style={{
                           fontSize: 10, padding: "1px 8px", borderRadius: 20,
                           background: T.cyanDim, color: T.cyanLight, fontFamily: "monospace",
                         }}>
-                          {client.company}
+                          {talent.company}
                         </span>
                       )}
-                      {client.tasks.high > 0 && (
+                      {talent.tasks.high > 0 && (
                         <span style={{
                           fontSize: 10, padding: "1px 8px", borderRadius: 20,
                           background: T.roseDim, color: T.rose, fontFamily: "monospace",
                           display: "flex", alignItems: "center", gap: 3,
                         }}>
                           <AlertTriangle size={9} strokeWidth={2.5} />
-                          {client.tasks.high} high prio
+                          {talent.tasks.high} high prio
                         </span>
                       )}
                     </div>
                     <p style={{ fontSize: 12, color: T.t3, fontFamily: "monospace", margin: "0 0 10px" }}>
-                      {client.email}
+                      {talent.email}
                     </p>
 
                     {/* Progress bar */}
@@ -488,7 +488,7 @@ export default function ClientsPage({ clients: initial, user }: Props) {
                         }} />
                       </div>
                       <span style={{ fontSize: 11, color: T.t2, fontFamily: "monospace" }}>
-                        {client.tasks.done}/{client.tasks.total} tasks · {pct}%
+                        {talent.tasks.done}/{talent.tasks.total} tasks · {pct}%
                       </span>
                     </div>
                   </div>
@@ -496,7 +496,7 @@ export default function ClientsPage({ clients: initial, user }: Props) {
                   {/* Actions */}
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                     <button
-                      onClick={() => router.push(`/admin/tasks?client=${client.id}`)}
+                      onClick={() => router.push(`/admin/tasks?talent=${talent.id}`)}
                       title="View tasks"
                       style={{
                         background: T.violetDim, border: `1px solid ${T.violet}33`,
@@ -513,9 +513,9 @@ export default function ClientsPage({ clients: initial, user }: Props) {
                     </button>
 
                     <button
-                      onClick={() => handleDelete(client.id, client.name)}
-                      disabled={deletingId === client.id}
-                      title="Remove client"
+                      onClick={() => handleDelete(talent.id, talent.name)}
+                      disabled={deletingId === talent.id}
+                      title="Remove talent"
                       style={{
                         background: "transparent", border: `1px solid ${T.border}`,
                         borderRadius: 8, padding: "7px 10px",
@@ -540,17 +540,17 @@ export default function ClientsPage({ clients: initial, user }: Props) {
       {showInvite && (
         <InviteModal
           onClose={() => setShowInvite(false)}
-          onCreated={client => {
-            setClients(prev => [{ ...client, tasks: { total: 0, done: 0, high: 0 } }, ...prev])
-            setNewClient(client)
+          onCreated={talent => {
+            setTalents(prev => [{ ...talent, tasks: { total: 0, done: 0, high: 0 } }, ...prev])
+            setNewTalent(talent)
           }}
         />
       )}
 
-      {newClient && (
+      {newTalent && (
         <CredentialsModal
-          client={newClient}
-          onClose={() => setNewClient(null)}
+          talent={newTalent}
+          onClose={() => setNewTalent(null)}
         />
       )}
     </div>

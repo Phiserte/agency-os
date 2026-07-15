@@ -1,4 +1,4 @@
-// src/app/api/admin/clients/route.ts
+// src/app/api/admin/talents/route.ts
 import { NextResponse } from "next/server"
 import { connectDB }    from "@/lib/db/mongoose"
 import { User }         from "@/models/User"
@@ -16,8 +16,8 @@ async function requireAdmin() {
   return user
 }
 
-// GET /api/admin/clients
-// Returns all clients with their task counts
+// GET /api/admin/talents
+// Returns all talents with their task counts
 export async function GET() {
   try {
     const admin = await requireAdmin()
@@ -25,21 +25,21 @@ export async function GET() {
 
     await connectDB()
 
-    const clients = await User.find({ role: "client" })
+    const talents = await User.find({ role: "talent" })
       .select("-password")
       .sort({ createdAt: -1 })
       .lean()
 
-    // Get task counts per client in one query
-    const clientIds = clients.map(c => c._id)
+    // Get task counts per talent in one query
+    const talentIds = talents.map(c => c._id)
     const taskCounts = await Task.aggregate([
-      { $match: { clientId: { $in: clientIds } } },
-      { $group: { _id: "$clientId", total: { $sum: 1 }, done: { $sum: { $cond: [{ $eq: ["$status", "done"] }, 1, 0] } } } },
+      { $match: { talentId: { $in: talentIds } } },
+      { $group: { _id: "$talentId", total: { $sum: 1 }, done: { $sum: { $cond: [{ $eq: ["$status", "done"] }, 1, 0] } } } },
     ])
 
     const countMap = new Map(taskCounts.map(t => [t._id.toString(), t]))
 
-    const serialized = clients.map(c => {
+    const serialized = talents.map(c => {
       const counts = countMap.get(c._id.toString())
       return {
         id:        c._id.toString(),
@@ -56,13 +56,13 @@ export async function GET() {
 
     return NextResponse.json(serialized, { status: 200 })
   } catch (error) {
-    console.error("[GET /api/admin/clients]", error)
-    return NextResponse.json({ error: "Failed to fetch clients" }, { status: 500 })
+    console.error("[GET /api/admin/talents]", error)
+    return NextResponse.json({ error: "Failed to fetch talents" }, { status: 500 })
   }
 }
 
-// POST /api/admin/clients
-// Invite a new client — creates User with role "client"
+// POST /api/admin/talents
+// Invite a new talent — creates User with role "talent"
 export async function POST(req: Request) {
   try {
     const admin = await requireAdmin()
@@ -95,28 +95,28 @@ export async function POST(req: Request) {
       ? password.trim()
       : Math.random().toString(36).slice(-10) + "A1!"
 
-    const hashed = await bcrypt.hash(rawPassword, 12)
+    
 
-    const client = await User.create({
-      name:     (name as string).trim(),
-      email:    (email as string).toLowerCase().trim(),
-      password: hashed,
-      company:  typeof company === "string" ? company.trim() : "",
-      role:     "client",
-    })
+    const talent = await User.create({
+  name:     (name as string).trim(),
+  email:    (email as string).toLowerCase().trim(),
+  password: rawPassword,   // ← pass the PLAIN password, let pre("save") hash it
+  company:  typeof company === "string" ? company.trim() : "",
+  role:     "talent",
+})
 
     return NextResponse.json({
-      id:          client._id.toString(),
-      name:        client.name,
-      email:       client.email,
-      company:     client.company,
-      createdAt:   client.createdAt.toISOString(),
-      // Return temp password so admin can share with client
+      id:          talent._id.toString(),
+      name:        talent.name,
+      email:       talent.email,
+      company:     talent.company,
+      createdAt:   talent.createdAt.toISOString(),
+      // Return temp password so admin can share with talent
       tempPassword: rawPassword,
       tasks: { total: 0, done: 0 },
     }, { status: 201 })
   } catch (error) {
-    console.error("[POST /api/admin/clients]", error)
-    return NextResponse.json({ error: "Failed to create client" }, { status: 500 })
+    console.error("[POST /api/admin/talents]", error)
+    return NextResponse.json({ error: "Failed to create talent" }, { status: 500 })
   }
 }

@@ -4,21 +4,21 @@ import { User }           from "@/models/User"
 import { Task }           from "@/models/Task"
 import { getCurrentUser } from "@/lib/auth"
 import { redirect }       from "next/navigation"
-import ClientsPage        from "./ClientsPage"
+import TalentsPage        from "./TalentsPage"
 
 async function getData() {
   await connectDB()
 
-  const clients = await User.find({ role: "client" })
+  const talents = await User.find({ role: "talent" })
     .select("-password")
     .sort({ createdAt: -1 })
     .lean()
 
-  const clientIds = clients.map(c => c._id)
+  const talentIds = talents.map(c => c._id)
   const taskCounts = await Task.aggregate([
-    { $match: { clientId: { $in: clientIds } } },
+    { $match: { talentId: { $in: talentIds } } },
     { $group: {
-      _id:   "$clientId",
+      _id:   "$talentId",
       total: { $sum: 1 },
       done:  { $sum: { $cond: [{ $eq: ["$status", "done"] }, 1, 0] } },
       high:  { $sum: { $cond: [{ $and: [{ $eq: ["$priority", "high"] }, { $ne: ["$status", "done"] }] }, 1, 0] } },
@@ -27,7 +27,7 @@ async function getData() {
 
   const countMap = new Map(taskCounts.map(t => [t._id.toString(), t]))
 
-  return clients.map(c => {
+  return talents.map(c => {
     const counts = countMap.get(c._id.toString())
     return {
       id:        c._id.toString(),
@@ -48,6 +48,6 @@ export default async function Page() {
   const user = await getCurrentUser()
   if (!user || user.role !== "admin") redirect("/login")
 
-  const clients = await getData()
-  return <ClientsPage clients={clients} user={{ name: user.name, email: user.email, role: user.role }} />
+  const talents = await getData()
+  return <TalentsPage talents={talents} user={{ name: user.name, email: user.email, role: user.role }} />
 }

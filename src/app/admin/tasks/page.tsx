@@ -10,14 +10,20 @@ async function getTasks() {
   try {
     await connectDB()
     const tasks = await Task.find().sort({ createdAt: -1 }).lean()
-    // lean() returns plain objects — serialize _id (ObjectId) to string
+    // lean() returns plain objects — serialize all ObjectId fields to strings
     return tasks.map(t => ({
-      ...t,
-      _id:       t._id.toString(),
-      id:        t._id.toString(),
-      clientId:  t.clientId?.toString() ?? undefined,
-      createdAt: t.createdAt?.toISOString() ?? "",
-      updatedAt: t.updatedAt?.toISOString() ?? "",
+      id:          t._id.toString(),
+      title:       t.title,
+      description: t.description ?? "",
+      priority:    t.priority,
+      status:      t.status,
+      assignee:    t.assignee ?? "",
+      talentId:    t.talentId?.toString() ?? undefined,
+      tags:        t.tags ?? [],
+      due:         t.due ?? "",
+      progress:    t.progress ?? 0,
+      createdAt:   t.createdAt?.toISOString() ?? "",
+      updatedAt:   t.updatedAt?.toISOString() ?? "",
     }))
   } catch (error) {
     console.error("[TasksPage] Failed to fetch tasks:", error)

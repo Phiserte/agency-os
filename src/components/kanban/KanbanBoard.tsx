@@ -12,6 +12,8 @@ import {
   useDroppable,
   useSensor,
   useSensors,
+  defaultDropAnimationSideEffects,
+  type DropAnimation,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -119,6 +121,21 @@ const AV_COLORS = [
   { bg: P.greenDim,  color: P.greenText },
 ];
 
+// ── Drag animation config ────────────────────────────────────────────────────
+// A real drop animation instead of "dropAnimation={null}" — the overlay card
+// now eases back into the column smoothly instead of vanishing instantly.
+const dropAnimationConfig: DropAnimation = {
+  duration: 220,
+  easing: "cubic-bezier(0.2, 0, 0, 1)",
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: "0.4",
+      },
+    },
+  }),
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function toInitials(name?: string) {
   if (!name) return "?";
@@ -139,6 +156,21 @@ function groupByColumn(tasks: Task[]): Record<ColumnId, Task[]> {
 
 function generateId() {
   return `task_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+}
+
+// Lightweight signature of a columns object used to detect whether polling
+// actually changed anything. Avoids calling setColumns (and re-rendering
+// every card) when the server returned exactly the same data.
+function columnsSignature(cols: Record<ColumnId, Task[]>): string {
+  let sig = "";
+  for (const col of COLUMNS) {
+    sig += col.id + ":";
+    for (const t of cols[col.id]) {
+      const id = (t._id ?? t.id) as string;
+      sig += `${id}|${t.status}|${t.progress ?? 0}|${t.title};`;
+    }
+  }
+  return sig;
 }
 
 function getDueState(due?: string): "overdue" | "today" | "soon" | "ok" | "none" {
@@ -222,8 +254,8 @@ function TaskCard({ task, dragging, onCardClick, style, attributes, listeners }:
         padding:      "14px 16px",
         cursor:       dragging ? "grabbing" : "grab",
         opacity:      dragging ? 0.5 : 1,
-        transition:   "all 0.12s",
-        boxShadow:    dragging ? `0 0 0 2px ${P.purple}33` : "0 1px 3px rgba(0,0,0,0.06)",
+        transition:   "box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease",
+        boxShadow:    dragging ? `0 8px 20px -4px ${P.purple}44, 0 0 0 2px ${P.purple}33` : "0 1px 3px rgba(0,0,0,0.06)",
         userSelect:   "none",
         pointerEvents: dragging ? "none" : "auto",
         touchAction:   "none",
@@ -346,7 +378,14 @@ function SortableTaskCard({ task, dragging, onCardClick }: {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: taskId });
+  } = useSortable({
+    id: taskId,
+    // Smoother, slightly slower reorder animation with an eased curve
+    transition: {
+      duration: 220,
+      easing: "cubic-bezier(0.2, 0, 0, 1)",
+    },
+  });
 
   return (
     <div
@@ -354,6 +393,8 @@ function SortableTaskCard({ task, dragging, onCardClick }: {
       style={{
         transform: transformToString(transform),
         transition,
+        // Prevents the dragged-from slot from abruptly "popping" other cards
+        zIndex: isDragging ? 10 : "auto",
       }}
     >
       <TaskCard
@@ -478,7 +519,7 @@ function KanbanColumn({
           borderRadius: 12,
           border: isOver ? `2px dashed ${col.dot}` : "2px dashed transparent",
           background: isOver ? col.dim : "transparent",
-          transition: "background 0.15s, border-color 0.15s",
+          transition: "background 0.15s ease, border-color 0.15s ease",
           padding: isOver ? 8 : 0,
           display: "flex", flexDirection: "column", gap: 10,
         }}
@@ -542,7 +583,7 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
   const uid = useId();
 
   useEffect(() => {
-    fetch("/api/clients")
+    fetch("/api/talents")
       .then(r => r.json()).then((d: ClientOption[]) => setClients(d))
       .catch(() => setClients([]))
       .finally(() => setLoadingCl(false));
@@ -645,7 +686,7 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
 
           {/* Client */}
           <div>
-            <label htmlFor={`${uid}-cl`} style={label}>ASSIGN TO CLIENT</label>
+            <label htmlFor={`${uid}-cl`} style={label}>ASSIGNEE</label>
             <select id={`${uid}-cl`} value={clientId}
               onChange={e => {
                 setClientId(e.target.value);
@@ -653,24 +694,20 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
                 if (c) setAssignee(c.name);
               }}
               disabled={loadingCl} style={{ ...field, cursor: "pointer" }} onFocus={onFocus} onBlur={onBlur}>
-              <option value="">{loadingCl ? "Loading..." : "No client (internal task)"}</option>
+              <option value="">{loadingCl ? "Loading..." : "No Assignee (internal task)"}</option>
               {clients.map(c => (
                 <option key={c.id} value={c.id}>{c.name}{c.company ? ` — ${c.company}` : ""}</option>
               ))}
             </select>
             {clientId && (
               <p style={{ fontSize: 11, color: P.teal, marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}>
-                ✓ This task will appear in the client portal
+                ✓ This task will appear in the talent portal
               </p>
             )}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label htmlFor={`${uid}-a`} style={label}>ASSIGNEE</label>
-              <input id={`${uid}-a`} value={assignee} onChange={e => setAssignee(e.target.value)}
-                placeholder="Team member" style={field} onFocus={onFocus} onBlur={onBlur} />
-            </div>
+          
             <div>
               <label htmlFor={`${uid}-due`} style={label}>DUE DATE</label>
               <input id={`${uid}-due`} type="date" value={due} onChange={e => setDue(e.target.value)}
@@ -810,24 +847,40 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
 
     setActiveTaskId(null);
     setHoverColumn(null);
-    // Remove from dragging set
-    setDraggingTaskIds(prev => {
-      const next = new Set(prev)
-      next.delete(taskId)
-      return next
-    });
 
-    if (!taskId || !srcId || !targetColId || taskId.startsWith("temp_")) return;
+    if (!taskId || !srcId || !targetColId || taskId.startsWith("temp_")) {
+      // Nothing to persist — release the drag lock immediately
+      setDraggingTaskIds(prev => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+      return;
+    }
 
     const previousColumns = columns;
     const overIndex = isColumnId(overId)
       ? columns[targetColId].length
       : columns[targetColId].findIndex(t => ((t._id ?? t.id) as string) === overId);
 
+    // Keep the task locked out of polling until the PATCH resolves, so a
+    // slow network response can't get clobbered by an incoming poll and
+    // snap the card back mid-flight.
+    const releaseDragLock = () => {
+      setDraggingTaskIds(prev => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+    };
+
     if (srcId === targetColId) {
       const oldIndex = columns[srcId].findIndex(t => ((t._id ?? t.id) as string) === taskId);
       const newIndex = overIndex === -1 ? columns[srcId].length - 1 : overIndex;
-      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+        releaseDragLock();
+        return;
+      }
 
       setColumns(prev => ({
         ...prev,
@@ -839,7 +892,8 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
         .catch(err => {
           setColumns(previousColumns);
           showToast(`Couldn't save: ${(err as Error).message}`);
-        });
+        })
+        .finally(releaseDragLock);
       return;
     }
 
@@ -857,13 +911,15 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
 
     if (onTaskMove) {
       onTaskMove(taskId, srcId, targetColId);
+      releaseDragLock();
     } else {
       apiPatchTask(taskId, { status: targetColId })
         .then(() => { router.refresh(); })
         .catch(err => {
           setColumns(previousColumns);
           showToast(`Move failed: ${(err as Error).message}`);
-        });
+        })
+        .finally(releaseDragLock);
     }
   }, [columns, findTaskColumn, isColumnId, onTaskMove, router]);
 
@@ -954,10 +1010,7 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
         return prevColumns
       }
 
-      // Create a map of polled tasks by ID
-      const polledMap = new Map(polledTasks.map(t => [t.id, t]))
-      
-      // Create new columns object
+      // Build the new columns object
       const newColumns: Record<ColumnId, Task[]> = {
         backlog: [],
         todo: [],
@@ -966,10 +1019,17 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
         done: [],
       }
 
-      // Process each column from polled data
       for (const task of polledTasks) {
         const colId = resolveColumn(task)
         newColumns[colId].push(task as Task)
+      }
+
+      // Skip the state update entirely if nothing actually changed — this
+      // is what was causing the jank: every ~6s poll was replacing the
+      // whole columns object (and re-mounting every card) even when the
+      // data was byte-for-byte identical to what was already on screen.
+      if (columnsSignature(newColumns) === columnsSignature(prevColumns)) {
+        return prevColumns
       }
 
       return newColumns
@@ -1064,7 +1124,7 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
               ))}
             </div>
 
-            <DragOverlay dropAnimation={null}>
+            <DragOverlay dropAnimation={dropAnimationConfig}>
               {activeTask ? <TaskCard task={activeTask} dragging={true} /> : null}
             </DragOverlay>
           </DndContext>

@@ -5,13 +5,13 @@ import { Task } from "@/models/Task"
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
-/** Fields the client is allowed to update. All others are stripped. */
+/** Fields the talent is allowed to update. All others are stripped. */
 const ALLOWED_UPDATE_FIELDS = [
   "title",
   "description",
   "priority",
   "assignee",
-  "clientId",
+  "talentId",
   "tags",
   "due",
   "status",

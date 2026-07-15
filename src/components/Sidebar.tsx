@@ -29,14 +29,14 @@ const P = {
 const ADMIN_NAV_ITEMS = [
   { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/admin/tasks",     icon: CheckSquare,      label: "Tasks" },
-  { href: "/admin/clients",   icon: Users,            label: "Clients" },
+  { href: "/admin/talents",   icon: Users,            label: "Talents" },
   { href: "/admin/team",      icon: UserPlus,         label: "Team" },
   { href: "/admin/reports",   icon: BarChart3,        label: "Reports" },
 ];
 
-const CLIENT_NAV_ITEMS = [
-  { href: "/client/dashboard", icon: LayoutDashboard, label: "My Dashboard" },
-  // Add additional client-accessible paths here if you build them out later
+const TALENT_NAV_ITEMS = [
+  { href: "/talent/dashboard", icon: LayoutDashboard, label: "My Dashboard" },
+  // Add additional talent-accessible paths here if you build them out later
 ];
 
 // 2. Accept explicit type matching definitions to fix page.tsx interface compilation mismatch
@@ -54,8 +54,8 @@ export default function Sidebar({ user }: SidebarProps) {
   const [loggingOut, setLoggingOut] = useState(false);
 
   // 3. Automatically swap menu contents depending on identity access levels
-  const isClient = user?.role === "client";
-  const navItems = isClient ? CLIENT_NAV_ITEMS : ADMIN_NAV_ITEMS;
+  const isTalent = user?.role === "talent";
+  const navItems = isTalent ? TALENT_NAV_ITEMS : ADMIN_NAV_ITEMS;
 
   async function handleLogout() {
     try {
@@ -95,10 +95,10 @@ export default function Sidebar({ user }: SidebarProps) {
           display: "flex", alignItems: "center", justifyContent: "center",
           fontWeight: 700, color: "#fff", fontSize: 14
         }}>
-          {isClient ? "C" : "M"}
+          {isTalent ? "T" : "M"}
         </div>
         <span style={{ color: P.text, fontWeight: 700, fontSize: 15, letterSpacing: "-0.2px" }}>
-          {isClient ? "Client Portal" : "Management"}
+          {isTalent ? "Talent Portal" : "Management"}
         </span>
       </div>
 

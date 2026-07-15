@@ -9,10 +9,10 @@ import DashboardPage      from "./DashboardPage"
 async function getData() {
   await connectDB()
 
-  const [tasks, teamCount, clientCount] = await Promise.all([
+  const [tasks, teamCount, talentCount] = await Promise.all([
     Task.find().sort({ createdAt: -1 }).lean(),
     User.countDocuments({ role: "admin" }),
-    User.countDocuments({ role: "client" }),
+    User.countDocuments({ role: "talent" }),
   ])
 
   const now      = new Date()
@@ -27,7 +27,7 @@ async function getData() {
     priority:    t.priority    as string,
     status:      t.status      as string,
     assignee:    t.assignee    ?? "",
-    clientId:    t.clientId?.toString() ?? undefined,
+    talentId:    t.talentId?.toString() ?? undefined,
     tags:        t.tags        ?? [],
     due:         t.due         ?? "",
     progress:    t.progress    ?? 0,
@@ -102,7 +102,7 @@ async function getData() {
     doneThisWeek,
     lastMonthDone,
     teamCount,
-    clientCount,
+    talentCount,
     chart: { labels: chartLabels, created: chartCreated, completed: chartCompleted },
     dateStr,
     greet,
