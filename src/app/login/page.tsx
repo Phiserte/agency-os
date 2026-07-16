@@ -44,6 +44,7 @@ const DARK = {
 }
 
 const LOGO_SRC = "/logo.png"
+const LOGO = "/logo.svg"
 const TASK_SRC = "/task.png"
 
 const FEATURES = [
@@ -87,30 +88,61 @@ export default function LoginPage() {
     }
   }
 
-  return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
-      background: T.rightBg,
-      transition: "background 0.3s ease",
-    }}>
-      <style>{`
-        @media (max-width: 960px) {
-          .login-left { display: none !important; }
-        }
-        .input-group:focus-within {
-          border-color: ${T.violet} !important;
-          box-shadow: 0 0 0 3px ${T.violet}1A !important;
-        }
-        .btn-submit:hover:not(:disabled) {
-          filter: brightness(1.1);
-          transform: translateY(-1px);
-        }
-        .btn-submit:active:not(:disabled) {
-          transform: translateY(0);
-        }
-      `}</style>
+   return (
+     <div style={{
+       minHeight: "100vh",
+       display: "flex",
+       fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
+       background: T.rightBg,
+       transition: "background 0.3s ease",
+     }}>
+       <style>{`
+         @media (max-width: 960px) {
+           .login-left { display: none !important; }
+         }
+         @media (max-width: 640px) {
+           .login-card {
+             padding: 32px 24px 24px !important;
+             border-radius: 20px !important;
+           }
+           .login-header-icon {
+             width: 44px !important;
+             height: 44px !important;
+             border-radius: 14px !important;
+             font-size: 20px !important;
+           }
+           .login-title {
+             font-size: 24px !important;
+           }
+           .login-subtitle {
+             font-size: 13px !important;
+           }
+           .login-input-group {
+             padding: 10px 14px !important;
+           }
+           .login-input {
+             font-size: 14px !important;
+           }
+           .login-btn {
+             padding: 12px !important;
+             font-size: 14px !important;
+           }
+           .login-footer {
+             font-size: 11px !important;
+           }
+         }
+         .input-group:focus-within {
+           border-color: ${T.violet} !important;
+           box-shadow: 0 0 0 3px ${T.violet}1A !important;
+         }
+         .btn-submit:hover:not(:disabled) {
+           filter: brightness(1.1);
+           transform: translateY(-1px);
+         }
+         .btn-submit:active:not(:disabled) {
+           transform: translateY(0);
+         }
+       `}</style>
 
       {/* LEFT PANEL */}
       <div
@@ -262,29 +294,28 @@ export default function LoginPage() {
             : <Sun  size={18} color={T.toggleFg} strokeWidth={2} />}
         </button>
 
-        <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 420 }}>
+        <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 420, padding: "0 16px" }}>
 
           {/* Form Header */}
-          <div style={{ textAlign: "center", marginBottom: 36 }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: 16,
-              background: T.violetDim, border: `1px solid ${T.violet}33`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 20px", fontSize: 24,
-              boxShadow: `0 8px 20px -4px ${T.violet}20`,
-            }}>
-              ⚡
-            </div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: T.t1, margin: 0, letterSpacing: "-0.5px" }}>
-              Sahynex Core
-            </h1>
-            <p style={{ marginTop: 8, fontSize: 14, color: T.t2, fontWeight: 400 }}>
+          <div className="login-header" style={{ textAlign: "center", marginBottom: 36 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={LOGO}
+              alt="Sahynex"
+              style={{
+                width: 200,
+                height: "auto",
+                margin: "0 auto 16px",
+                display: "block",
+              }}
+            />
+            <p className="login-subtitle" style={{ marginTop: 8, fontSize: 14, color: T.t2, fontWeight: 400 }}>
               Welcome back. Please sign in to your dashboard.
             </p>
           </div>
 
           {/* Core Login Card */}
-          <div style={{
+          <div className="login-card" style={{
             background: T.card,
             border: `1px solid ${T.border}`,
             borderRadius: 24,
@@ -313,7 +344,7 @@ export default function LoginPage() {
                 }}>
                   Email Address
                 </label>
-                <div className="input-group" style={{
+                <div className="input-group login-input-group" style={{
                   display: "flex", alignItems: "center", gap: 12,
                   width: "100%", background: T.inputBg,
                   border: `1px solid ${T.border}`, borderRadius: 12,
@@ -329,6 +360,7 @@ export default function LoginPage() {
                     placeholder="name@company.com"
                     required
                     autoComplete="email"
+                    className="login-input"
                     style={{
                       flex: 1, border: "none", background: "transparent",
                       color: T.t1, fontSize: 15, outline: "none", width: "100%"
@@ -344,7 +376,7 @@ export default function LoginPage() {
                 }}>
                   Password
                 </label>
-                <div className="input-group" style={{
+                <div className="input-group login-input-group" style={{
                   display: "flex", alignItems: "center", gap: 12,
                   width: "100%", background: T.inputBg,
                   border: `1px solid ${T.border}`, borderRadius: 12,
@@ -360,6 +392,7 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     required
                     autoComplete="current-password"
+                    className="login-input"
                     style={{
                       flex: 1, border: "none", background: "transparent",
                       color: T.t1, fontSize: 15, outline: "none", width: "100%"
@@ -371,7 +404,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-submit"
+                className="btn-submit login-btn"
                 style={{
                   width: "100%", background: loading ? T.violetDim : T.violet,
                   border: "none", borderRadius: 12, padding: "14px",
@@ -385,7 +418,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div style={{
+            <div className="login-footer" style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               marginTop: 28, paddingTop: 24, borderTop: `1px solid ${T.border}`,
             }}>

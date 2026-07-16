@@ -1,15 +1,15 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useRouter,}                    from "next/navigation"
+import { useRouter }                    from "next/navigation"
 import Link                             from "next/link"
 import {
   CheckSquare, Users, Settings, Bell, Search,
   TrendingUp, TrendingDown, CheckCircle2, Clock,
   AlertCircle, ChevronDown, ArrowUpDown, Eye,
-  ChevronLeft, ChevronRight, Calendar, Tag,
+  ChevronLeft, ChevronRight, Calendar, Tag, Menu, X,
 } from "lucide-react"
-import Sidebar from "@/components/Sidebar" // Added shared light theme sidebar import
+import Sidebar from "@/components/Sidebar" 
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const P = {
@@ -234,6 +234,9 @@ export default function DashboardPage({
   const [page,           setPage]           = useState(1)
   const [statusFilter,   setStatusFilter]   = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
+  const [isMobile, setIsMobile] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const sidebarRef = useRef<HTMLDivElement>(null)
 
   const filtered = tableTasks.filter(t => {
     const q = search.toLowerCase()
@@ -258,10 +261,97 @@ export default function DashboardPage({
     getDueWarning(t.due, nowISO)?.color === P.red && t.status !== "done"
   ).length
 
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Close mobile sidebar when clicking outside
+  useEffect(() => {
+    if (!isMobileSidebarOpen || !isMobile) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+        setIsMobileSidebarOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isMobileSidebarOpen, isMobile])
+
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
+      {/* ── Mobile Sidebar Toggle Button ── */}
+      {isMobile && (
+        <button
+          onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          style={{
+            position: "fixed",
+            top: 10,
+            left: 14,
+            zIndex: 1000,
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: P.card,
+            border: `1px solid ${P.border}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            color: P.text,
+          }}
+          title={isMobileSidebarOpen ? "Close sidebar" : "Open sidebar"}
+        >
+          {isMobileSidebarOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
+      )}
+
       {/* ── Working Shared Light Sidebar ── */}
-      <Sidebar />
+      {isMobile ? (
+        // Mobile: Fixed sidebar overlay drawer
+        <div
+          ref={sidebarRef}
+          style={{
+            width: isMobileSidebarOpen ? 240 : 0,
+            minWidth: isMobileSidebarOpen ? 240 : 0,
+            height: "100vh",
+            position: "fixed",
+            left: 0,
+            top: 0,
+            zIndex: 999,
+            transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            overflow: "hidden",
+            background: P.card,
+            borderRight: `1px solid ${P.border}`,
+            boxShadow: isMobileSidebarOpen ? "4px 0 24px rgba(0,0,0,0.15)" : "none",
+          }}
+        >
+          <div style={{ width: 240, height: "100vh", display: "flex", flexDirection: "column" }}>
+            <Sidebar />
+          </div>
+        </div>
+      ) : (
+        // Desktop: Permanent Fixed Sidebar Layout
+        <div style={{
+          width: 240,
+          minWidth: 240,
+          height: "100vh",
+          flexShrink: 0,
+          background: P.card,
+          borderRight: `1px solid ${P.border}`,
+        }}>
+          <Sidebar />
+        </div>
+      )}
 
       {/* ── Dashboard Page Track Container ── */}
       <div style={{
@@ -275,12 +365,22 @@ export default function DashboardPage({
         {/* Topbar */}
         <header style={{
           display: "flex", alignItems: "center", gap: 14,
-          padding: "0 28px", height: 56, flexShrink: 0,
+          padding: isMobile ? "0 14px 0 60px" : "0 28px",
+          height: 56, flexShrink: 0,
           background: P.card,
           borderBottom: `1px solid ${P.border}`,
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
         }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: P.text, flex: 1, letterSpacing: "-0.3px" }}>
+          <span style={{ 
+            fontSize: isMobile ? 16 : 18, 
+            fontWeight: 700, 
+            color: P.text, 
+            flex: 1, 
+            letterSpacing: "-0.3px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          }}>
             Dashboard
           </span>
 
@@ -288,14 +388,15 @@ export default function DashboardPage({
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             background: P.bg, border: `1px solid ${P.border}`,
-            borderRadius: 10, padding: "7px 12px", width: 220,
+            borderRadius: 10, padding: "7px 12px", 
+            width: isMobile ? 120 : 220,
             boxShadow: "inset 0 1px 2px rgba(0,0,0,0.04)",
           }}>
             <Search size={13} color={P.textMute} strokeWidth={1.8} />
             <input
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
-              placeholder="Search tasks..."
+              placeholder={isMobile ? "Search..." : "Search tasks..."}
               style={{
                 border: "none", background: "transparent",
                 fontSize: 13, color: P.text, outline: "none", width: "100%",
@@ -324,30 +425,43 @@ export default function DashboardPage({
 
           {/* User */}
           <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "5px 10px", borderRadius: 10,
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "5px 8px", borderRadius: 10,
             border: `1px solid ${P.border}`, background: P.card,
             cursor: "pointer",
           }}>
             <Avatar name={user.name} size={26} />
-            <span style={{ fontSize: 13, fontWeight: 500, color: P.text }}>{user.name.split(" ")[0]}</span>
-            <ChevronDown size={12} color={P.textMute} strokeWidth={1.8} />
+            {!isMobile && (
+              <>
+                <span style={{ fontSize: 13, fontWeight: 500, color: P.text }}>{user.name.split(" ")[0]}</span>
+                <ChevronDown size={12} color={P.textMute} strokeWidth={1.8} />
+              </>
+            )}
           </div>
         </header>
 
-        {/* Content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px 40px" }}>
+        {/* Content Tracking Layout Viewport */}
+        <div style={{ 
+          flex: 1, 
+          overflowY: "auto", 
+          padding: isMobile ? "16px 14px 32px" : "24px 28px 40px" 
+        }}>
 
           {/* Greeting */}
-          <div style={{ marginBottom: 24 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: "-0.4px" }}>
+          <div style={{ marginBottom: 20 }}>
+            <h1 style={{ fontSize: isMobile ? 20 : 22, fontWeight: 700, margin: 0, letterSpacing: "-0.4px" }}>
               {greet}, {user.name.split(" ")[0]} 👋
             </h1>
-            <p style={{ fontSize: 13, color: P.textSub, margin: "4px 0 0" }}>{dateStr}</p>
+            <p style={{ fontSize: 12, color: P.textSub, margin: "4px 0 0" }}>{dateStr}</p>
           </div>
 
-          {/* ── STAT CARDS ─────────────────────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+          {/* ── STAT CARDS (4-COLUMNS ON DESKTOP, COMPACT AUTO-FIT ON MOBILE) ── */}
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: isMobile ? "repeat(auto-fit, minmax(140px, 1fr))" : "repeat(4, 1fr)", 
+            gap: 14, 
+            marginBottom: 20 
+          }}>
             {[
               {
                 label: "Total Tasks", value: total, icon: CheckSquare,
@@ -380,7 +494,7 @@ export default function DashboardPage({
                 onClick={onClick}
                 style={{
                   background: P.card, border: `1px solid ${P.border}`,
-                  borderRadius: 14, padding: "18px 20px",
+                  borderRadius: 14, padding: "16px 18px",
                   cursor: "pointer", transition: "all 0.15s",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                   position: "relative", overflow: "hidden",
@@ -401,31 +515,38 @@ export default function DashboardPage({
                 {/* Top accent line */}
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: accent, borderRadius: "14px 14px 0 0" }} />
 
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12, marginTop: 6 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8, marginTop: 4 }}>
                   <span style={{ fontSize: 12, color: P.textSub, fontWeight: 500 }}>{label}</span>
-                  <div style={{ width: 34, height: 34, borderRadius: 10, background: accentDim, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Icon size={16} color={accent} strokeWidth={1.8} />
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: accentDim, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icon size={15} color={accent} strokeWidth={1.8} />
                   </div>
                 </div>
 
-                <div style={{ fontSize: 30, fontWeight: 700, color: P.text, lineHeight: 1, marginBottom: 10, letterSpacing: "-1px" }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: P.text, lineHeight: 1, marginBottom: 8, letterSpacing: "-1px" }}>
                   {value}
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  {up
-                    ? <TrendingUp  size={12} color={P.teal} strokeWidth={2} />
-                    : <TrendingDown size={12} color={P.red}  strokeWidth={2} />
-                  }
-                  <span style={{ fontSize: 12, color: up ? P.teal : P.red, fontWeight: 600 }}>{delta}</span>
-                  <span style={{ fontSize: 12, color: P.textMute }}>{sub}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                    {up
+                      ? <TrendingUp  size={11} color={P.teal} strokeWidth={2} />
+                      : <TrendingDown size={11} color={P.red}  strokeWidth={2} />
+                    }
+                    <span style={{ fontSize: 11, color: up ? P.teal : P.red, fontWeight: 600 }}>{delta}</span>
+                  </div>
+                  <span style={{ fontSize: 11, color: P.textMute }}>{sub}</span>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* ── MID ROW ────────────────────────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 14, marginBottom: 20 }}>
+          {/* ── MID ROW (STACK ON MOBILE / BALANCED 380px GRID ON DESKTOP) ── */}
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: isMobile ? "1fr" : "380px 1fr", 
+            gap: 14, 
+            marginBottom: 20 
+          }}>
 
             {/* Activity feed */}
             <div style={{
@@ -510,8 +631,8 @@ export default function DashboardPage({
               boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>Task Volume (Last 7 Days)</div>
-                <div style={{ display: "flex", gap: 14, fontSize: 12, color: P.textSub }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>Task Volume</div>
+                <div style={{ display: "flex", gap: 14, fontSize: 11, color: P.textSub }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <span style={{ width: 10, height: 10, borderRadius: 3, background: P.purpleLight, display: "inline-block" }} />
                     Created
@@ -526,7 +647,7 @@ export default function DashboardPage({
             </div>
           </div>
 
-          {/* ── TASK TABLE ─────────────────────────────────────────────────── */}
+          {/* ── TASK TABLE (WITH OVERFLOW PANNING) ──────────────────────────── */}
           <div style={{
             background: P.card, border: `1px solid ${P.border}`,
             borderRadius: 14, overflow: "hidden",
@@ -535,6 +656,7 @@ export default function DashboardPage({
             {/* Table header */}
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
+              flexWrap: "wrap", gap: 10,
               padding: "14px 20px", borderBottom: `1px solid ${P.border}`,
               background: `linear-gradient(to bottom, ${P.card}, ${P.bg}33)`,
             }}>
@@ -581,72 +703,74 @@ export default function DashboardPage({
               </div>
             </div>
 
-          {/* Table */}
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: P.bg }}>
-                  {["ID", "Title", "Status", "Priority", "Assignee", "Due", "Updated", "Action"].map(h => (
-                    <th key={h} style={{
-                      textAlign: "left", padding: "10px 16px",
-                      fontSize: 11, fontWeight: 600, color: P.textSub,
-                      borderBottom: `1px solid ${P.border}`,
-                      whiteSpace: "nowrap", letterSpacing: "0.3px",
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                        {h}
-                        {!["Action"].includes(h) && <ArrowUpDown size={9} color={P.textMute} strokeWidth={2} />}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((t) => (
-                  <tr 
-                    key={t.id} 
-                    style={{ 
-                      borderBottom: `1px solid ${P.border}`,
-                      transition: "background 0.1s ease",
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "#FAFAFA"}
-                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                  >
-                    <td style={{ padding: "12px 16px", fontSize: 12, color: P.textMute }}>{t.id.slice(-4)}</td>
-                    <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 500, color: P.text }}>{t.title}</td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <Pill {...(STATUS_CFG[t.status] || STATUS_CFG.backlog)} />
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <Pill {...(PRIORITY_CFG[t.priority] || PRIORITY_CFG.low)} />
-                    </td>
-                    <td style={{ padding: "12px 16px", fontSize: 13, color: P.textSub }}>{t.assignee || "Unassigned"}</td>
-                    <td style={{ padding: "12px 16px", fontSize: 12, color: P.textSub }}>{t.due ? new Date(t.due).toLocaleDateString("en-IN") : "-"}</td>
-                    <td style={{ padding: "12px 16px", fontSize: 12, color: P.textSub }}>{timeAgo(t.updatedAt, nowISO)}</td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <Link 
-                        href="/admin/tasks"
-                        style={{ 
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: 28,
-                          height: 28,
-                          borderRadius: 6,
-                          background: "transparent", 
-                          border: "none", 
-                          cursor: "pointer",
-                          transition: "background 0.15s",
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = P.purpleDim}
-                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                      >
-                        <Eye size={14} color={P.purple} />
-                      </Link>
-                    </td>
+            {/* Scrollable container wraps the table to prevent screen breakage */}
+            <div style={{ width: "100%", overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+                <thead>
+                  <tr style={{ background: P.bg }}>
+                    {["ID", "Title", "Status", "Priority", "Assignee", "Due", "Updated", "Action"].map(h => (
+                      <th key={h} style={{
+                        textAlign: "left", padding: "10px 16px",
+                        fontSize: 11, fontWeight: 600, color: P.textSub,
+                        borderBottom: `1px solid ${P.border}`,
+                        whiteSpace: "nowrap", letterSpacing: "0.3px",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                          {h}
+                          {!["Action"].includes(h) && <ArrowUpDown size={9} color={P.textMute} strokeWidth={2} />}
+                        </div>
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {pageRows.map((t) => (
+                    <tr 
+                      key={t.id} 
+                      style={{ 
+                        borderBottom: `1px solid ${P.border}`,
+                        transition: "background 0.1s ease",
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = "#FAFAFA"}
+                      onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                    >
+                      <td style={{ padding: "12px 16px", fontSize: 12, color: P.textMute }}>{t.id.slice(-4)}</td>
+                      <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 500, color: P.text }}>{t.title}</td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <Pill {...(STATUS_CFG[t.status] || STATUS_CFG.backlog)} />
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <Pill {...(PRIORITY_CFG[t.priority] || PRIORITY_CFG.low)} />
+                      </td>
+                      <td style={{ padding: "12px 16px", fontSize: 13, color: P.textSub }}>{t.assignee || "Unassigned"}</td>
+                      <td style={{ padding: "12px 16px", fontSize: 12, color: P.textSub }}>{t.due ? new Date(t.due).toLocaleDateString("en-IN") : "-"}</td>
+                      <td style={{ padding: "12px 16px", fontSize: 12, color: P.textSub }}>{timeAgo(t.updatedAt, nowISO)}</td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <Link 
+                          href="/admin/tasks"
+                          style={{ 
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            background: "transparent", 
+                            border: "none", 
+                            cursor: "pointer",
+                            transition: "background 0.15s",
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = P.purpleDim}
+                          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                        >
+                          <Eye size={14} color={P.purple} />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

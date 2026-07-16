@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter }            from "next/navigation"
 import {
   CheckCircle2, Clock3, AlertTriangle,
   CheckSquare, ChevronDown, ChevronUp,
-  MessageSquare, LogOut,
+  MessageSquare, LogOut, Menu, X
 } from "lucide-react"
 import {
   DndContext, useDroppable, useDraggable,
@@ -13,6 +13,7 @@ import {
 } from "@dnd-kit/core"
 import TaskDetailModal, { type TaskDetail } from "@/components/Taskdetailmodal"
 import { useTaskPolling, type Task as PollingTask } from "@/hooks/useTaskPolling"
+import Sidebar from "@/components/Sidebar"
 // Talent Dashboard - Read-only view for talents
 
 // ── Palette ───────────────────────────────────────────────────────────────────
@@ -403,10 +404,33 @@ export default function ClientDashboard({ tasks: initialTasks, user, dateStr, gr
   const [isMounted,    setIsMounted]    = useState(false)
   const [draggingTaskIds, setDraggingTaskIds] = useState<Set<string>>(new Set())
 
+  // Responsive sidebar state
+  const [isMobile, setIsMobile] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const sidebarRef = useRef<HTMLDivElement>(null)
+
   // Prevent Next.js SSR / Hydration mismatch issues
   useEffect(() => {
     setIsMounted(true)
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    handleResize()
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
   }, [])
+
+  // Close mobile sidebar when clicking outside
+  useEffect(() => {
+    if (!isMobileSidebarOpen || !isMobile) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+        setIsMobileSidebarOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isMobileSidebarOpen, isMobile])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -494,13 +518,93 @@ export default function ClientDashboard({ tasks: initialTasks, user, dateStr, gr
   }
 
   return (
-    <>
-      <div style={{
-        minHeight: "100vh", background: P.bg0,
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        color: P.text,
-      }}>
+    <div style={{
+      minHeight: "100vh", background: P.bg0,
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      color: P.text,
+      display: "flex",
+    }}>
 
+        {/* Mobile Sidebar Toggle Button */}
+        {isMobile && (
+          <button
+            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            style={{
+              position: "fixed",
+              top: 16,
+              left: 16,
+              zIndex: 1001,
+              width: 40,
+              height: 40,
+              borderRadius: 8,
+              background: P.card,
+              border: `1px solid ${P.border}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              color: P.text,
+              transition: "transform 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.05)"
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"
+            }}
+            title={isMobileSidebarOpen ? "Close sidebar" : "Open sidebar"}
+          >
+            {isMobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        )}
+
+        {/* Sidebar */}
+        {isMobile ? (
+          // Mobile: Fixed sidebar that can be toggled
+          <div
+            ref={sidebarRef}
+            style={{
+              width: isMobileSidebarOpen ? 240 : 0,
+              minWidth: isMobileSidebarOpen ? 240 : 0,
+              height: "100vh",
+              position: "fixed",
+              left: 0,
+              top: 0,
+              zIndex: 999,
+              transition: "width 0.3s ease, min-width 0.3s ease",
+              overflow: "hidden",
+              background: P.card,
+              borderRight: `1px solid ${P.border}`,
+            }}
+          >
+            <div style={{ width: 240, height: "100vh", display: "flex", flexDirection: "column" }}>
+              <Sidebar user={user} />
+            </div>
+          </div>
+        ) : (
+          // Desktop: Normal sidebar always visible
+          <div style={{
+            width: 240,
+            minWidth: 240,
+            height: "100vh",
+            flexShrink: 0,
+            background: P.card,
+            borderRight: `1px solid ${P.border}`,
+          }}>
+            <Sidebar user={user} />
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          background: P.bg0,
+          overflow: "hidden",
+          minWidth: 0,
+        }}>
         {/* NAVBAR */}
         <nav style={{
           position: "sticky", top: 0, zIndex: 40,
@@ -616,7 +720,7 @@ export default function ClientDashboard({ tasks: initialTasks, user, dateStr, gr
           )}
 
           {/* ── STAT CARDS ────────────────────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14, marginBottom: 20 }}>
             {[
               { label: "Your Tasks",  value: total,      color: P.purple,                             dim: P.purpleDim, icon: CheckSquare,   delta: `${pct}% complete` },
               { label: "In Progress", value: inProgress, color: "#3B82F6",                            dim: "#EFF6FF",   icon: Clock3,        delta: "active now" },
@@ -752,6 +856,6 @@ export default function ClientDashboard({ tasks: initialTasks, user, dateStr, gr
           onClose={() => setSelectedTask(null)}
         />
       )}
-    </>
+    </div>
   )
 }

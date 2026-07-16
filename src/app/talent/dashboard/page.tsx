@@ -6,7 +6,6 @@ import { Task }           from "@/models/Task"
 import { getCurrentUser } from "@/lib/auth"
 import { redirect }       from "next/navigation"
 import TalentDashboard    from "./TalentDashboard"
-import Sidebar            from "@/components/Sidebar" // <-- IMPORT YOUR SIDEBAR HERE
 
 // Explicit interface to match exactly what TalentDashboard expects
 interface SerializedTask {
@@ -83,28 +82,19 @@ export default async function TalentDashboardPage() {
   const nowISO   = now.toISOString()
 
   return (
-    // Outer Flex container keeps Sidebar on the left, Content on the right
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      
-      {/* 1. Sidebar Panel */}
-      <Sidebar user={user} />
-
-      {/* 2. Main Area Content (scrollable if content overflows dashboard) */}
-      <main style={{ flex: 1, overflowY: "auto", height: "100vh" }}>
-        <TalentDashboard
-          tasks={tasks}
-          user={{
-            id:    user.id,
-            name:  user.name ?? "Talent",
-            email: user.email ?? "",
-            role:  user.role,
-          }}
-          dateStr={dateStr}
-          greet={greet}
-          nowISO={nowISO}
-        />
-      </main>
-
+    <div style={{ minHeight: "100vh" }}>
+      <TalentDashboard
+        tasks={tasks}
+        user={{
+          id:    user.id,
+          name:  user.name ?? "Talent",
+          email: user.email ?? "",
+          role:  user.role,
+        }}
+        dateStr={dateStr}
+        greet={greet}
+        nowISO={nowISO}
+      />
     </div>
   )
 }

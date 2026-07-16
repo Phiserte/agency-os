@@ -28,7 +28,7 @@ import {
 import type { Transform } from "@dnd-kit/utilities";
 import TaskDetailModal, { type TaskDetail } from "@/components/Taskdetailmodal";
 import Sidebar from "@/components/Sidebar"; // Added shared sidebar import
-import { Plus, TrendingUp, Search, Eye, Trash2, Loader2 } from "lucide-react";
+import { Plus, TrendingUp, Search, Eye, Trash2, Loader2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 // ── Palette (matches DashboardPage) ──────────────────────────────────────────
 const P = {
@@ -787,11 +787,25 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
   const [search,       setSearch]       = useState("");
   const [clearingDone, setClearingDone] = useState(false);
   const [draggingTaskIds, setDraggingTaskIds] = useState<Set<string>>(new Set());
+  const [isMobile, setIsMobile] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Track last synced IDs in a ref so we never read columns state inside the effect
   const lastSyncedRef = useRef<string>("");
@@ -1036,6 +1050,20 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
     })
   }, [draggingTaskIds])
 
+  // Close mobile sidebar when clicking outside
+  useEffect(() => {
+    if (!isMobileSidebarOpen || !isMobile) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+        setIsMobileSidebarOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobileSidebarOpen, isMobile]);
+
   // Set up polling for real-time updates
   useTaskPolling({
     draggingTaskIds,
@@ -1060,8 +1088,69 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
 
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
+      {/* ── Mobile Sidebar Toggle Button ── */}
+      {isMobile && (
+        <button
+          onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          style={{
+            position: "fixed",
+            top: 16,
+            left: 16,
+            zIndex: 1000,
+            width: 40,
+            height: 40,
+            borderRadius: 8,
+            background: P.card,
+            border: `1px solid ${P.border}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            color: P.text,
+          }}
+          title={isMobileSidebarOpen ? "Close sidebar" : "Open sidebar"}
+        >
+          {isMobileSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+        </button>
+      )}
+
       {/* ── Working Shared Sidebar ── */}
-      <Sidebar />
+      {isMobile ? (
+        // Mobile: Fixed sidebar that can be toggled
+        <div
+          ref={sidebarRef}
+          style={{
+            width: isMobileSidebarOpen ? 240 : 0,
+            minWidth: isMobileSidebarOpen ? 240 : 0,
+            height: "100vh",
+            position: "fixed",
+            left: 0,
+            top: 0,
+            zIndex: 999,
+            transition: "width 0.3s ease, min-width 0.3s ease",
+            overflow: "hidden",
+            background: P.card,
+            borderRight: `1px solid ${P.border}`,
+          }}
+        >
+          <div style={{ width: 240, height: "100vh", display: "flex", flexDirection: "column" }}>
+            <Sidebar />
+          </div>
+        </div>
+      ) : (
+        // Desktop: Normal sidebar always visible
+        <div style={{
+          width: 240,
+          minWidth: 240,
+          height: "100vh",
+          flexShrink: 0,
+          background: P.card,
+          borderRight: `1px solid ${P.border}`,
+        }}>
+          <Sidebar />
+        </div>
+      )}
 
       {/* ── Kanban Board Container Track ── */}
       <div style={{
@@ -1078,8 +1167,10 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
         {/* Search Header Context */}
         <div style={{
           display: "flex", alignItems: "center", gap: 14,
-          padding: "12px 28px", height: 56, flexShrink: 0,
+          padding: isMobile && isMobileSidebarOpen ? "12px 28px 12px 72px" : "12px 28px",
+          height: 56, flexShrink: 0,
           background: P.card, borderBottom: `1px solid ${P.border}`,
+          transition: "padding 0.3s ease",
         }}>
           <span style={{ fontSize: 16, fontWeight: 700, color: P.text, flex: 1 }}>Task Board</span>
           <div style={{ position: "relative", width: 240 }}>
