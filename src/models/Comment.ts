@@ -1,10 +1,11 @@
 import mongoose, { Document, Model, Schema, Types } from "mongoose"
+import { ROLES, type UserRole } from "@/lib/roles"
 
 export interface IComment extends Document {
   taskId:     Types.ObjectId
   authorId:   Types.ObjectId
   authorName: string
-  authorRole: "admin" | "talent"
+  authorRole: UserRole
   message:    string
   createdAt:  Date
   updatedAt:  Date
@@ -29,8 +30,8 @@ const CommentSchema = new Schema<IComment>(
       trim:     true,
     },
     authorRole: {
-      type:    String,
-      enum:    ["admin", "talent"],
+      type:     String,
+      enum:     [...ROLES],
       required: true,
     },
     message: {

@@ -16,7 +16,7 @@ export async function GET() {
 
     await connectDB()
 
-    const talents = await User.find({ role: "talent" })
+    const talents = await User.find({ role: { $in: ["marketing_manager", "design_manager", "talent"] } })
       .select("_id name email company")
       .sort({ name: 1 })
       .lean()

@@ -1,13 +1,16 @@
 import { SignJWT, jwtVerify } from "jose"
+import type { UserRole } from "@/lib/roles"
 
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "change-this-secret-in-production"
-)
+const SECRET_VALUE = process.env.JWT_SECRET
+if (!SECRET_VALUE) {
+  throw new Error("JWT_SECRET environment variable is not set")
+}
+const SECRET = new TextEncoder().encode(SECRET_VALUE)
 
 export interface JWTPayload {
   id:    string
   email: string
-  role:  "admin" | "talent"
+  role:  UserRole
   name:  string
 }
 

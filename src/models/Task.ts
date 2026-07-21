@@ -1,7 +1,8 @@
 import mongoose, { Document, Model, Schema, Types } from "mongoose"
 
-export type Priority = "high" | "medium" | "low"
-export type Status   = "backlog" | "todo" | "inprogress" | "review" | "done"
+export type Priority   = "high" | "medium" | "low"
+export type Status     = "backlog" | "todo" | "inprogress" | "review" | "done"
+export type Department = "marketing" | "design"
 
 export interface ITask extends Document {
   title:       string
@@ -10,6 +11,7 @@ export interface ITask extends Document {
   status:      Status
   assignee:    string
   talentId:    Types.ObjectId | null  // links task to a talent User
+  department:  Department | null      // scopes task to marketing/design manager boards
   tags:        string[]
   due:         string                 // ISO date string e.g. "2025-06-10"
   progress:    number
@@ -56,6 +58,14 @@ const TaskSchema = new Schema<ITask>(
       ref:     "User",   // references the User model
       default: null,
     },
+    department: {
+      type:    String,
+      enum:    {
+        values:  ["marketing", "design"],
+        message: "{VALUE} is not a valid department",
+      },
+      default: null,
+    },
     tags: {
       type:    [String],
       default: [],
@@ -77,6 +87,8 @@ const TaskSchema = new Schema<ITask>(
 // Index so talent dashboard queries are fast
 TaskSchema.index({ talentId: 1, status: 1 })
 TaskSchema.index({ due: 1, status: 1 })
+// Index so marketing/design manager board queries are fast
+TaskSchema.index({ department: 1, status: 1 })
 
 export const Task: Model<ITask> =
   mongoose.models.Task ?? mongoose.model<ITask>("Task", TaskSchema)

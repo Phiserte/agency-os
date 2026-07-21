@@ -236,7 +236,9 @@ export default function DashboardPage({
   const [priorityFilter, setPriorityFilter] = useState("all")
   const [isMobile, setIsMobile] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
 
   const filtered = tableTasks.filter(t => {
     const q = search.toLowerCase()
@@ -285,6 +287,20 @@ export default function DashboardPage({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isMobileSidebarOpen, isMobile])
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    if (!isProfileOpen) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setIsProfileOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isProfileOpen])
 
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
@@ -424,18 +440,121 @@ export default function DashboardPage({
           </div>
 
           {/* User */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            padding: "5px 8px", borderRadius: 10,
-            border: `1px solid ${P.border}`, background: P.card,
-            cursor: "pointer",
-          }}>
-            <Avatar name={user.name} size={26} />
-            {!isMobile && (
-              <>
-                <span style={{ fontSize: 13, fontWeight: 500, color: P.text }}>{user.name.split(" ")[0]}</span>
-                <ChevronDown size={12} color={P.textMute} strokeWidth={1.8} />
-              </>
+          <div
+            ref={profileRef}
+            style={{ position: "relative" }}
+          >
+            <div
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "5px 8px", borderRadius: 10,
+                border: `1px solid ${P.border}`, background: P.card,
+                cursor: "pointer",
+              }}
+            >
+              <Avatar name={user.name} size={26} />
+              {!isMobile && (
+                <>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: P.text }}>{user.name.split(" ")[0]}</span>
+                  <ChevronDown size={12} color={P.textMute} strokeWidth={1.8} />
+                </>
+              )}
+            </div>
+
+            {/* Profile Dropdown */}
+            {isProfileOpen && (
+              <div style={{
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                right: 0,
+                background: P.card,
+                border: `1px solid ${P.border}`,
+                borderRadius: 12,
+                boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                minWidth: 200,
+                zIndex: 1000,
+                overflow: "hidden",
+              }}>
+                <div style={{
+                  padding: "12px 16px",
+                  borderBottom: `1px solid ${P.border}`,
+                }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{user.name}</div>
+                  <div style={{ fontSize: 12, color: P.textSub, marginTop: 2 }}>{user.email}</div>
+                  <div style={{
+                    fontSize: 11,
+                    color: P.purple,
+                    background: P.purpleDim,
+                    padding: "2px 8px",
+                    borderRadius: 6,
+                    marginTop: 6,
+                    display: "inline-block",
+                    fontWeight: 500,
+                    textTransform: "capitalize",
+                  }}>
+                    {user.role.replace("_", " ")}
+                  </div>
+                </div>
+
+                <div style={{ padding: "6px 0" }}>
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false)
+                      router.push("/admin/dashboard")
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 16px",
+                      border: "none",
+                      background: "transparent",
+                      color: P.text,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = P.bg}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
+                    <Settings size={14} color={P.textSub} strokeWidth={1.8} />
+                    Settings
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false)
+                      router.push("/login")
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 16px",
+                      border: "none",
+                      background: "transparent",
+                      color: P.red,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = P.redDim}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    Logout
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </header>

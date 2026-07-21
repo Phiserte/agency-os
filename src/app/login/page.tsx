@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useId, useMemo } from "react"
+import { useState, useId } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, Lock, Moon, Sun, CheckSquare, Users, BarChart3, Shield } from "lucide-react"
+import { Mail, Lock, CheckSquare, Users, BarChart3, Shield } from "lucide-react"
 
 // ── Refined Palettes ────────────────────────────────────────────────────────
 const LIGHT = {
@@ -24,24 +24,6 @@ const LIGHT = {
   blobC:      "rgba(245, 158, 11, 0.08)",
 }
 
-const DARK = {
-  panelFrom:  "#0F0B26",
-  panelTo:    "#1A153B",
-  rightBg:    "#030712",
-  card:       "#0B0F19",
-  border:     "rgba(255, 255, 255, 0.06)",
-  inputBg:    "#131825",
-  violet:     "#6366F1",
-  violetDim:  "rgba(99, 102, 241, 0.12)",
-  t1:         "#F8FAFC",
-  t2:         "#94A3B8",
-  t3:         "#475569",
-  toggleBg:   "#F8FAFC",
-  toggleFg:   "#4F46E5",
-  blobA:      "rgba(99, 102, 241, 0.18)",
-  blobB:      "rgba(16, 185, 129, 0.12)",
-  blobC:      "rgba(245, 158, 11, 0.08)",
-}
 
 const LOGO_SRC = "/logo.png"
 const LOGO = "/logo.svg"
@@ -54,7 +36,6 @@ const FEATURES = [
 ]
 
 export default function LoginPage() {
-  const [dark, setDark]         = useState(false)
   const [email, setEmail]       = useState("")
   const [password, setPassword] = useState("")
   const [error, setError]       = useState("")
@@ -62,7 +43,7 @@ export default function LoginPage() {
   const router  = useRouter()
   const uid     = useId()
 
-  const T = useMemo(() => (dark ? DARK : LIGHT), [dark])
+  const T = LIGHT
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -89,7 +70,7 @@ export default function LoginPage() {
   }
 
    return (
-     <div style={{
+     <div className="login-container" style={{
        minHeight: "100vh",
        display: "flex",
        fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
@@ -97,25 +78,56 @@ export default function LoginPage() {
        transition: "background 0.3s ease",
      }}>
        <style>{`
-         @media (max-width: 960px) {
-           .login-left { display: none !important; }
+         /* Standard Layout Rule overrides */
+         .login-container {
+           flex-direction: row;
          }
+         
+         @media (max-width: 960px) {
+           .login-container {
+             flex-direction: column !important;
+             overflow-y: auto;
+           }
+           .login-left {
+             flex: none !important;
+             width: 100% !important;
+             min-height: auto !important;
+             padding: 40px 28px !important;
+             border-right: none !important;
+             border-bottom: 1px solid ${T.border} !important;
+           }
+           .login-left-inner {
+             padding: 0 !important;
+             gap: 32px !important;
+           }
+           .login-left-title {
+             font-size: 36px !important;
+             margin-bottom: 12px !important;
+           }
+           .login-left-desc {
+             font-size: 15px !important;
+             margin-bottom: 24px !important;
+           }
+           .login-right {
+             min-height: auto !important;
+             padding: 48px 20px !important;
+           }
+           .theme-toggle-btn {
+             top: 20px !important;
+             right: 20px !important;
+           }
+         }
+         
          @media (max-width: 640px) {
+           .login-left {
+             padding: 32px 20px !important;
+           }
+           .login-left-title {
+             font-size: 28px !important;
+           }
            .login-card {
-             padding: 32px 24px 24px !important;
+             padding: 32px 20px 24px !important;
              border-radius: 20px !important;
-           }
-           .login-header-icon {
-             width: 44px !important;
-             height: 44px !important;
-             border-radius: 14px !important;
-             font-size: 20px !important;
-           }
-           .login-title {
-             font-size: 24px !important;
-           }
-           .login-subtitle {
-             font-size: 13px !important;
            }
            .login-input-group {
              padding: 10px 14px !important;
@@ -127,10 +139,8 @@ export default function LoginPage() {
              padding: 12px !important;
              font-size: 14px !important;
            }
-           .login-footer {
-             font-size: 11px !important;
-           }
          }
+         
          .input-group:focus-within {
            border-color: ${T.violet} !important;
            box-shadow: 0 0 0 3px ${T.violet}1A !important;
@@ -148,7 +158,7 @@ export default function LoginPage() {
       <div
         className="login-left"
         style={{
-          flex: "0 0 58%",
+          flex: "0 0 45%",
           minHeight: "100vh",
           position: "relative",
           overflow: "hidden",
@@ -156,8 +166,8 @@ export default function LoginPage() {
           backgroundImage: `
             linear-gradient(
               135deg,
-              rgba(15,23,42,.70),
-              rgba(15,23,42,.35)
+              rgba(15,23,42,.75),
+              rgba(15,23,42,.45)
             ),
             url(${TASK_SRC})
           `,
@@ -171,11 +181,12 @@ export default function LoginPage() {
             position: "absolute",
             inset: 0,
             background:
-              "linear-gradient(to bottom, rgba(0,0,0,.15), rgba(0,0,0,.55))",
+              "linear-gradient(to bottom, rgba(0,0,0,.1), rgba(0,0,0,.5))",
           }}
         />
 
         <div
+          className="login-left-inner"
           style={{
             position: "relative",
             zIndex: 2,
@@ -183,27 +194,35 @@ export default function LoginPage() {
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            padding: "64px 56px",
+            padding: "56px 48px",
+            boxSizing: "border-box",
+            gap: "48px"
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={LOGO_SRC}
-            alt="Sahynex"
-            style={{
-              width: 170,
-              height: "auto",
-            }}
-          />
+          {/* Logo Brand image */}
+          <div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={LOGO_SRC}
+              alt="Sahynex"
+              style={{
+                width: 140,
+                height: "auto",
+                display: "block"
+              }}
+            />
+          </div>
 
-          <div style={{ maxWidth: 520 }}>
+          <div style={{ width: "100%", maxWidth: 520 }}>
             <h1
+              className="login-left-title"
               style={{
                 color: "#fff",
-                fontSize: 56,
-                lineHeight: 1.05,
+                fontSize: 48,
+                lineHeight: 1.1,
                 fontWeight: 800,
-                marginBottom: 24,
+                marginBottom: 20,
+                letterSpacing: "-0.5px"
               }}
             >
               Manage your
@@ -212,11 +231,12 @@ export default function LoginPage() {
             </h1>
 
             <p
+              className="login-left-desc"
               style={{
-                color: "rgba(255,255,255,.82)",
-                fontSize: 18,
-                lineHeight: 1.7,
-                marginBottom: 36,
+                color: "rgba(255,255,255,.85)",
+                fontSize: 16,
+                lineHeight: 1.6,
+                marginBottom: 28,
               }}
             >
               Track projects, clients, reports and every task from one modern
@@ -226,7 +246,7 @@ export default function LoginPage() {
             <div
               style={{
                 display: "flex",
-                gap: 12,
+                gap: 10,
                 flexWrap: "wrap",
               }}
             >
@@ -236,16 +256,18 @@ export default function LoginPage() {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 10,
-                    padding: "12px 18px",
+                    gap: 8,
+                    padding: "8px 16px",
                     borderRadius: 999,
-                    background: "rgba(255,255,255,.12)",
-                    backdropFilter: "blur(16px)",
-                    border: "1px solid rgba(255,255,255,.18)",
+                    background: "rgba(255,255,255,.1)",
+                    backdropFilter: "blur(12px)",
+                    border: "1px solid rgba(255,255,255,.15)",
                     color: "#fff",
+                    fontSize: 13,
+                    fontWeight: 500
                   }}
                 >
-                  <Icon size={18} />
+                  <Icon size={16} />
                   {label}
                 </div>
               ))}
@@ -254,8 +276,9 @@ export default function LoginPage() {
 
           <p
             style={{
-              color: "rgba(255,255,255,.7)",
-              fontSize: 14,
+              color: "rgba(255,255,255,.6)",
+              fontSize: 13,
+              margin: 0
             }}
           >
             Sahynex Core • Project & Client Management Platform
@@ -264,52 +287,35 @@ export default function LoginPage() {
       </div>
 
       {/* ── RIGHT: Sleek Form Panel ────────────────────────────────────── */}
-      <div style={{
-        flex: 1,
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "40px 24px",
-        position: "relative",
-      }}>
-        {/* Decorative subtle ambiance blur */}
-        <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", background: dark ? "rgba(99, 102, 241, 0.05)" : "rgba(79, 70, 229, 0.03)", filter: "blur(120px)", top: "10%", right: "10%" }} />
+      <div 
+        className="login-right"
+        style={{
+          flex: 1,
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "40px 24px",
+          position: "relative",
+        }}
+      >
 
-        {/* Floating Theme Toggle */}
-        <button
-          onClick={() => setDark(d => !d)}
-          aria-label="Toggle theme"
-          style={{
-            position: "absolute", top: 32, right: 32, zIndex: 2,
-            width: 40, height: 40, borderRadius: 12,
-            background: T.card, border: `1px solid ${T.border}`, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.03)",
-            transition: "all 0.2s ease",
-          }}
-        >
-          {dark
-            ? <Moon size={18} color={T.toggleFg} strokeWidth={2} />
-            : <Sun  size={18} color={T.toggleFg} strokeWidth={2} />}
-        </button>
-
-        <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 420, padding: "0 16px" }}>
+        <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 420, padding: "0 4px" }}>
 
           {/* Form Header */}
-          <div className="login-header" style={{ textAlign: "center", marginBottom: 36 }}>
+          <div className="login-header" style={{ textAlign: "center", marginBottom: 32 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={LOGO}
               alt="Sahynex"
               style={{
-                width: 200,
+                width: 180,
                 height: "auto",
                 margin: "0 auto 16px",
                 display: "block",
               }}
             />
-            <p className="login-subtitle" style={{ marginTop: 8, fontSize: 14, color: T.t2, fontWeight: 400 }}>
+            <p className="login-subtitle" style={{ marginTop: 8, fontSize: 14, color: T.t2, fontWeight: 400, margin: 0 }}>
               Welcome back. Please sign in to your dashboard.
             </p>
           </div>
@@ -320,15 +326,13 @@ export default function LoginPage() {
             border: `1px solid ${T.border}`,
             borderRadius: 24,
             padding: "40px 36px 32px",
-            boxShadow: dark
-              ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
-              : "0 25px 50px -12px rgba(15, 23, 42, 0.05)",
+            boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.05)",
             transition: "background 0.3s ease, border-color 0.3s ease",
           }}>
             {error && (
               <div style={{
-                background: dark ? "rgba(239, 68, 68, 0.1)" : "#FEF2F2",
-                border: `1px solid ${dark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2"}`,
+                background: "#FEF2F2",
+                border: `1px solid #FEE2E2`,
                 borderRadius: 12, padding: "12px 16px", marginBottom: 24,
                 fontSize: 13, color: "#EF4444", fontWeight: 500,
               }}>
@@ -419,12 +423,12 @@ export default function LoginPage() {
             </form>
 
             <div className="login-footer" style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              display: "flex", alignItems: "center",  justifyContent: "center", gap: 8,
               marginTop: 28, paddingTop: 24, borderTop: `1px solid ${T.border}`,
             }}>
               <Shield size={14} color={T.t3} strokeWidth={2} />
               <span style={{ fontSize: 12, color: T.t2, fontWeight: 500 }}>
-                Protected Environment · Admin Access Only
+                
               </span>
             </div>
           </div>

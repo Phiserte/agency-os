@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { verifyToken } from "@/lib/jwt"
+import { ROUTE_ACCESS, ROLE_HOME } from "@/lib/roles"
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -7,35 +8,25 @@ export async function middleware(req: NextRequest) {
 
   const user = token ? await verifyToken(token) : null
 
-  // ── Redirect logged-in users away from /login ──────────────────────────────
+  // ── Redirect logged-in users away from /login or / ─────────────────────────
   if (pathname === "/login" || pathname === "/") {
     if (user) {
-      const dest = user.role === "admin" ? "/admin/dashboard" : "/talent/dashboard"
-      return NextResponse.redirect(new URL(dest, req.url))
+      return NextResponse.redirect(new URL(ROLE_HOME[user.role], req.url))
     }
     return NextResponse.next()
   }
 
-  // ── Protect /admin routes — admin only ─────────────────────────────────────
-  if (pathname.startsWith("/admin")) {
+  // ── Route-prefix based access control ───────────────────────────────────────
+  // Add a new protected section by editing ROUTE_ACCESS in src/lib/roles.ts —
+  // no need to add another "if" branch here.
+  const match = ROUTE_ACCESS.find(r => pathname.startsWith(r.prefix))
+  if (match) {
     if (!user) {
       return NextResponse.redirect(new URL("/login", req.url))
     }
-    if (user.role !== "admin") {
-      // Talent trying to access admin — send to their dashboard
-      return NextResponse.redirect(new URL("/talent/dashboard", req.url))
-    }
-    return NextResponse.next()
-  }
-
-  // ── Protect /talent routes — talent only ───────────────────────────────────
-  if (pathname.startsWith("/talent")) {
-    if (!user) {
-      return NextResponse.redirect(new URL("/login", req.url))
-    }
-    if (user.role !== "talent") {
-      // Admin trying to access talent portal — send to their dashboard
-      return NextResponse.redirect(new URL("/admin/dashboard", req.url))
+    if (!match.roles.includes(user.role)) {
+      // Logged in, but this role isn't allowed here — send them home instead
+      return NextResponse.redirect(new URL(ROLE_HOME[user.role], req.url))
     }
     return NextResponse.next()
   }
@@ -48,6 +39,8 @@ export const config = {
     "/",
     "/login",
     "/admin/:path*",
+    "/marketing/:path*",
+    "/design/:path*",
     "/talent/:path*",
   ],
 }

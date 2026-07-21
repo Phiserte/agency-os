@@ -9,7 +9,9 @@ import {
   Users, 
   UserPlus, 
   BarChart3, 
-  LogOut 
+  LogOut,
+  Megaphone,
+  Palette,
 } from "lucide-react";
 
 // ── Light Theme Palette ──────────────────────────────────────────────────────
@@ -25,7 +27,8 @@ const P = {
   purpleText:  "#3C3489",
 };
 
-// 1. Split Nav configs explicitly by workspace role roles
+// Nav configs per workspace role. Add a role here + one array below when a
+// new role is introduced — no other logic needs to change.
 const ADMIN_NAV_ITEMS = [
   { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/admin/tasks",     icon: CheckSquare,      label: "Tasks" },
@@ -34,12 +37,19 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/reports",   icon: BarChart3,        label: "Reports" },
 ];
 
+const MARKETING_NAV_ITEMS = [
+  { href: "/marketing/dashboard", icon: Megaphone, label: "Marketing Board" },
+];
+
+const DESIGN_NAV_ITEMS = [
+  { href: "/design/dashboard", icon: Palette, label: "Design Board" },
+];
+
 const TALENT_NAV_ITEMS = [
   { href: "/talent/dashboard", icon: LayoutDashboard, label: "My Dashboard" },
   // Add additional talent-accessible paths here if you build them out later
 ];
 
-// 2. Accept explicit type matching definitions to fix page.tsx interface compilation mismatch
 interface SidebarProps {
   user?: {
     name?: string;
@@ -48,14 +58,22 @@ interface SidebarProps {
   };
 }
 
+// Per-role brand config so the header badge/label/color makes sense for
+// whichever workspace this sidebar is rendered inside.
+const ROLE_BRAND: Record<string, { initial: string; label: string; navItems: typeof ADMIN_NAV_ITEMS }> = {
+  admin:              { initial: "M", label: "Management",       navItems: ADMIN_NAV_ITEMS },
+  marketing_manager:  { initial: "M", label: "Marketing Portal",  navItems: MARKETING_NAV_ITEMS },
+  design_manager:     { initial: "D", label: "Design Portal",     navItems: DESIGN_NAV_ITEMS },
+  talent:             { initial: "T", label: "Talent Portal",     navItems: TALENT_NAV_ITEMS },
+}
+
 export default function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // 3. Automatically swap menu contents depending on identity access levels
-  const isTalent = user?.role === "talent";
-  const navItems = isTalent ? TALENT_NAV_ITEMS : ADMIN_NAV_ITEMS;
+  const brand = ROLE_BRAND[user?.role ?? "admin"] ?? ROLE_BRAND.admin;
+  const navItems = brand.navItems;
 
   async function handleLogout() {
     try {
@@ -95,10 +113,10 @@ export default function Sidebar({ user }: SidebarProps) {
           display: "flex", alignItems: "center", justifyContent: "center",
           fontWeight: 700, color: "#fff", fontSize: 14
         }}>
-          {isTalent ? "T" : "M"}
+          {brand.initial}
         </div>
         <span style={{ color: P.text, fontWeight: 700, fontSize: 15, letterSpacing: "-0.2px" }}>
-          {isTalent ? "Talent Portal" : "Management"}
+          {brand.label}
         </span>
       </div>
 

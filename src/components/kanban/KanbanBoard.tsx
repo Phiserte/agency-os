@@ -27,7 +27,7 @@ import {
 } from "@dnd-kit/sortable";
 import type { Transform } from "@dnd-kit/utilities";
 import TaskDetailModal, { type TaskDetail } from "@/components/Taskdetailmodal";
-import Sidebar from "@/components/Sidebar"; // Added shared sidebar import
+import Sidebar from "@/components/Sidebar";
 import { Plus, TrendingUp, Search, Eye, Trash2, Loader2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 // ── Palette (matches DashboardPage) ──────────────────────────────────────────
@@ -77,6 +77,7 @@ export interface Task {
   due?: string;
   progress?: number;
   status?: ColumnId;
+  department?: string;
   [key: string]: unknown;
 }
 
@@ -84,6 +85,14 @@ interface KanbanBoardProps {
   tasks?: Task[];
   onTaskMove?: (taskId: string, fromCol: ColumnId, toCol: ColumnId) => void;
   onTaskCreate?: (task: Omit<Task, "id">) => void;
+  /**
+   * When set, this board is scoped to a single department
+   * (e.g. "marketing", "design"). Polling only fetches tasks belonging to
+   * that department, and any task created from this board is
+   * automatically tagged with it. Leave undefined for the admin board,
+   * which sees every department.
+   */
+  department?: string;
 }
 
 interface ClientOption { id: string; name: string; email: string; company: string }
@@ -121,18 +130,11 @@ const AV_COLORS = [
   { bg: P.greenDim,  color: P.greenText },
 ];
 
-// ── Drag animation config ────────────────────────────────────────────────────
-// A real drop animation instead of "dropAnimation={null}" — the overlay card
-// now eases back into the column smoothly instead of vanishing instantly.
 const dropAnimationConfig: DropAnimation = {
   duration: 220,
   easing: "cubic-bezier(0.2, 0, 0, 1)",
   sideEffects: defaultDropAnimationSideEffects({
-    styles: {
-      active: {
-        opacity: "0.4",
-      },
-    },
+    styles: { active: { opacity: "0.4" } },
   }),
 };
 
@@ -158,9 +160,6 @@ function generateId() {
   return `task_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
 }
 
-// Lightweight signature of a columns object used to detect whether polling
-// actually changed anything. Avoids calling setColumns (and re-rendering
-// every card) when the server returned exactly the same data.
 function columnsSignature(cols: Record<ColumnId, Task[]>): string {
   let sig = "";
   for (const col of COLUMNS) {
@@ -210,7 +209,6 @@ function transformToString(transform: Transform | null) {
   return `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) scaleX(${scaleX}) scaleY(${scaleY})`;
 }
 
-// ── Avatar ────────────────────────────────────────────────────────────────────
 function Avatar({ name, size=28 }: { name?: string; size?: number }) {
   const c = AV_COLORS[(name?.charCodeAt(0) ?? 65) % AV_COLORS.length];
   return (
@@ -226,7 +224,6 @@ function Avatar({ name, size=28 }: { name?: string; size?: number }) {
   );
 }
 
-// ── Task Card ─────────────────────────────────────────────────────────────────
 interface TaskCardProps {
   task: Task; dragging: boolean;
   onCardClick?: (task: Task) => void;
@@ -274,7 +271,6 @@ function TaskCard({ task, dragging, onCardClick, style, attributes, listeners }:
         (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
       }}
     >
-      {/* Priority + Due */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 6 }}>
         <span style={{
           fontSize: 10, padding: "2px 8px", borderRadius: 20,
@@ -297,12 +293,10 @@ function TaskCard({ task, dragging, onCardClick, style, attributes, listeners }:
         )}
       </div>
 
-      {/* Title */}
       <p style={{ fontSize: 13, fontWeight: 600, color: P.text, margin: "0 0 6px", lineHeight: 1.4 }}>
         {task.title}
       </p>
 
-      {/* Description */}
       {task.description && (
         <p style={{
           fontSize: 11, color: P.textSub, margin: "0 0 10px",
@@ -314,7 +308,6 @@ function TaskCard({ task, dragging, onCardClick, style, attributes, listeners }:
         </p>
       )}
 
-      {/* Progress */}
       {task.progress !== undefined && task.progress > 0 && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
@@ -335,7 +328,6 @@ function TaskCard({ task, dragging, onCardClick, style, attributes, listeners }:
         </div>
       )}
 
-      {/* Tags */}
       {tags.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
           {tags.map((tag, i) => {
@@ -352,7 +344,6 @@ function TaskCard({ task, dragging, onCardClick, style, attributes, listeners }:
         </div>
       )}
 
-      {/* Assignee */}
       {task.assignee && (
         <div style={{
           display: "flex", alignItems: "center", gap: 7,
@@ -372,19 +363,10 @@ function SortableTaskCard({ task, dragging, onCardClick }: {
 }) {
   const taskId = (task._id ?? task.id) as string;
   const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
+    attributes, listeners, setNodeRef, transform, transition, isDragging,
   } = useSortable({
     id: taskId,
-    // Smoother, slightly slower reorder animation with an eased curve
-    transition: {
-      duration: 220,
-      easing: "cubic-bezier(0.2, 0, 0, 1)",
-    },
+    transition: { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" },
   });
 
   return (
@@ -393,7 +375,6 @@ function SortableTaskCard({ task, dragging, onCardClick }: {
       style={{
         transform: transformToString(transform),
         transition,
-        // Prevents the dragged-from slot from abruptly "popping" other cards
         zIndex: isDragging ? 10 : "auto",
       }}
     >
@@ -408,7 +389,6 @@ function SortableTaskCard({ task, dragging, onCardClick }: {
   );
 }
 
-// ── Column ────────────────────────────────────────────────────────────────────
 interface ColumnProps {
   col: typeof COLUMNS[number]; tasks: Task[];
   activeTaskId: string | null; isOver: boolean;
@@ -427,10 +407,7 @@ function KanbanColumn({
   const taskIds = tasks.map(task => (task._id ?? task.id) as string);
 
   return (
-    <div
-      style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column" }}
-    >
-      {/* Header */}
+    <div style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column" }}>
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
         marginBottom: 12, padding: "0 2px", height: 26
@@ -508,10 +485,8 @@ function KanbanColumn({
         </button>
       </div>
 
-      {/* Top accent line */}
       <div style={{ height: 3, borderRadius: "2px 2px 0 0", background: col.accent, marginBottom: 12, opacity: 0.6 }} />
 
-      {/* Drop zone */}
       <div
         ref={setNodeRef}
         style={{
@@ -566,7 +541,6 @@ function KanbanColumn({
   );
 }
 
-// ── Add Task Modal ────────────────────────────────────────────────────────────
 function AddTaskModal({ defaultCol, onAdd, onClose }: {
   defaultCol: ColumnId; onAdd: (task: Task) => void; onClose: () => void
 }) {
@@ -639,7 +613,6 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
           boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
         }}
       >
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 700, color: P.text, margin: 0 }}>New Task</h2>
@@ -684,7 +657,6 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
             </div>
           </div>
 
-          {/* Client */}
           <div>
             <label htmlFor={`${uid}-cl`} style={label}>ASSIGNEE</label>
             <select id={`${uid}-cl`} value={clientId}
@@ -707,7 +679,6 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          
             <div>
               <label htmlFor={`${uid}-due`} style={label}>DUE DATE</label>
               <input id={`${uid}-due`} type="date" value={due} onChange={e => setDue(e.target.value)}
@@ -740,7 +711,6 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
   );
 }
 
-// ── API Helpers ───────────────────────────────────────────────────────────────
 async function apiPatchTask(id: string, patch: Partial<Task>): Promise<Task> {
   const res = await fetch(`/api/tasks/${id}`, {
     method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -759,7 +729,6 @@ async function apiCreateTask(task: Omit<Task, "id">): Promise<Task> {
   return res.json();
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ message, type, onDismiss }: { message: string; type: "error" | "success"; onDismiss: () => void }) {
   return (
     <div onClick={onDismiss} style={{
@@ -776,8 +745,7 @@ function Toast({ message, type, onDismiss }: { message: string; type: "error" | 
   );
 }
 
-// ── Main Board ────────────────────────────────────────────────────────────────
-export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskCreate }: KanbanBoardProps) {
+export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskCreate, department }: KanbanBoardProps) {
   const [columns,      setColumns]      = useState(() => groupByColumn(propTasks));
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskDetail | null>(null);
@@ -796,18 +764,13 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Detect mobile screen size
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Track last synced IDs in a ref so we never read columns state inside the effect
   const lastSyncedRef = useRef<string>("");
   useEffect(() => {
     const incoming = propTasks.map(t => (t._id ?? t.id) as string).sort().join(",");
@@ -836,7 +799,6 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
     const taskId = String(event.active.id);
     setActiveTaskId(taskId);
     setHoverColumn(findTaskColumn(taskId));
-    // Add to dragging set to prevent polling from updating it
     setDraggingTaskIds(prev => new Set(prev).add(taskId));
   }, [findTaskColumn]);
 
@@ -863,7 +825,6 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
     setHoverColumn(null);
 
     if (!taskId || !srcId || !targetColId || taskId.startsWith("temp_")) {
-      // Nothing to persist — release the drag lock immediately
       setDraggingTaskIds(prev => {
         const next = new Set(prev);
         next.delete(taskId);
@@ -877,9 +838,6 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
       ? columns[targetColId].length
       : columns[targetColId].findIndex(t => ((t._id ?? t.id) as string) === overId);
 
-    // Keep the task locked out of polling until the PATCH resolves, so a
-    // slow network response can't get clobbered by an incoming poll and
-    // snap the card back mid-flight.
     const releaseDragLock = () => {
       setDraggingTaskIds(prev => {
         const next = new Set(prev);
@@ -938,20 +896,21 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
   }, [columns, findTaskColumn, isColumnId, onTaskMove, router]);
 
   const handleCreateTask = useCallback((fields: Omit<Task, "id">) => {
+    const fieldsWithDept = department ? { ...fields, department } : fields;
+
     if (onTaskCreate) {
-      onTaskCreate(fields);
+      onTaskCreate(fieldsWithDept);
       return;
     }
 
     const tempId = `temp_${Date.now()}`;
-    
-    // Destructure with explicit casting to bypass the index signature's 'unknown' enforcement
-    const title = fields.title as string;
-    const priority = fields.priority as Priority;
-    const targetCol = (fields.status || "backlog") as ColumnId;
+
+    const title = fieldsWithDept.title as string;
+    const priority = fieldsWithDept.priority as Priority;
+    const targetCol = (fieldsWithDept.status || "backlog") as ColumnId;
 
     const localCopy: Task = {
-      ...fields,
+      ...fieldsWithDept,
       id: tempId,
       title,
       priority,
@@ -963,7 +922,7 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
       [targetCol]: [...(prev[targetCol] || []), localCopy]
     }));
 
-    apiCreateTask(fields)
+    apiCreateTask(fieldsWithDept)
       .then(() => {
         showToast("Task created successfully", "success");
         router.refresh();
@@ -975,11 +934,11 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
         }));
         showToast(`Creation failed: ${(err as Error).message}`);
       });
-  }, [onTaskCreate, router]);
+  }, [onTaskCreate, router, department]);
 
   const handleClearDone = useCallback(async () => {
     if (clearingDone) return;
-    
+
     const doneTasks = columns.done;
     if (doneTasks.length === 0) {
       showToast("No completed tasks to clear", "error");
@@ -989,15 +948,13 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
     const confirmed = window.confirm(
       `Are you sure you want to delete ${doneTasks.length} completed task(s)? This action cannot be undone.`
     );
-    
+
     if (!confirmed) return;
 
     setClearingDone(true);
     try {
-      const deletePromises = doneTasks.map(task => 
-        fetch(`/api/tasks/${task._id ?? task.id}`, {
-          method: "DELETE",
-        })
+      const deletePromises = doneTasks.map(task =>
+        fetch(`/api/tasks/${task._id ?? task.id}`, { method: "DELETE" })
       );
 
       const results = await Promise.all(deletePromises);
@@ -1016,21 +973,14 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
     }
   }, [columns.done, clearingDone, router]);
 
-  // Handle task updates from polling
   const handleTasksUpdate = useCallback((polledTasks: PollingTask[]) => {
     setColumns(prevColumns => {
-      // If any tasks are being dragged, skip this update
       if (draggingTaskIds.size > 0) {
         return prevColumns
       }
 
-      // Build the new columns object
       const newColumns: Record<ColumnId, Task[]> = {
-        backlog: [],
-        todo: [],
-        inprogress: [],
-        review: [],
-        done: [],
+        backlog: [], todo: [], inprogress: [], review: [], done: [],
       }
 
       for (const task of polledTasks) {
@@ -1038,10 +988,6 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
         newColumns[colId].push(task as Task)
       }
 
-      // Skip the state update entirely if nothing actually changed — this
-      // is what was causing the jank: every ~6s poll was replacing the
-      // whole columns object (and re-mounting every card) even when the
-      // data was byte-for-byte identical to what was already on screen.
       if (columnsSignature(newColumns) === columnsSignature(prevColumns)) {
         return prevColumns
       }
@@ -1050,29 +996,29 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
     })
   }, [draggingTaskIds])
 
-  // Close mobile sidebar when clicking outside
   useEffect(() => {
     if (!isMobileSidebarOpen || !isMobile) return;
-
     const handleClickOutside = (e: MouseEvent) => {
       if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
         setIsMobileSidebarOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMobileSidebarOpen, isMobile]);
 
-  // Set up polling for real-time updates
+  // Set up polling for real-time updates. When this board is scoped to a
+  // department (marketing/design manager view), only fetch that
+  // department's tasks — the admin board (no department prop) still
+  // fetches everything.
   useTaskPolling({
     draggingTaskIds,
     onTasksUpdate: handleTasksUpdate,
     interval: 6000,
     enabled: true,
+    filterParams: department ? { department } : {},
   })
 
-  // Filter tasks locally based on search state
   const filteredColumns = {
     backlog: columns.backlog.filter(t => t.title.toLowerCase().includes(search.toLowerCase())),
     todo: columns.todo.filter(t => t.title.toLowerCase().includes(search.toLowerCase())),
@@ -1088,26 +1034,15 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
 
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
-      {/* ── Mobile Sidebar Toggle Button ── */}
       {isMobile && (
         <button
           onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           style={{
-            position: "fixed",
-            top: 16,
-            left: 16,
-            zIndex: 1000,
-            width: 40,
-            height: 40,
-            borderRadius: 8,
-            background: P.card,
-            border: `1px solid ${P.border}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-            color: P.text,
+            position: "fixed", top: 16, left: 16, zIndex: 1000,
+            width: 40, height: 40, borderRadius: 8,
+            background: P.card, border: `1px solid ${P.border}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", color: P.text,
           }}
           title={isMobileSidebarOpen ? "Close sidebar" : "Open sidebar"}
         >
@@ -1115,23 +1050,15 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
         </button>
       )}
 
-      {/* ── Working Shared Sidebar ── */}
       {isMobile ? (
-        // Mobile: Fixed sidebar that can be toggled
         <div
           ref={sidebarRef}
           style={{
             width: isMobileSidebarOpen ? 240 : 0,
             minWidth: isMobileSidebarOpen ? 240 : 0,
-            height: "100vh",
-            position: "fixed",
-            left: 0,
-            top: 0,
-            zIndex: 999,
+            height: "100vh", position: "fixed", left: 0, top: 0, zIndex: 999,
             transition: "width 0.3s ease, min-width 0.3s ease",
-            overflow: "hidden",
-            background: P.card,
-            borderRight: `1px solid ${P.border}`,
+            overflow: "hidden", background: P.card, borderRight: `1px solid ${P.border}`,
           }}
         >
           <div style={{ width: 240, height: "100vh", display: "flex", flexDirection: "column" }}>
@@ -1139,32 +1066,20 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
           </div>
         </div>
       ) : (
-        // Desktop: Normal sidebar always visible
         <div style={{
-          width: 240,
-          minWidth: 240,
-          height: "100vh",
-          flexShrink: 0,
-          background: P.card,
-          borderRight: `1px solid ${P.border}`,
+          width: 240, minWidth: 240, height: "100vh", flexShrink: 0,
+          background: P.card, borderRight: `1px solid ${P.border}`,
         }}>
           <Sidebar />
         </div>
       )}
 
-      {/* ── Kanban Board Container Track ── */}
       <div style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        background: P.bg,
-        overflow: "hidden",
-        position: "relative",
+        flex: 1, display: "flex", flexDirection: "column",
+        background: P.bg, overflow: "hidden", position: "relative",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        color: P.text,
-        minWidth: 0,
+        color: P.text, minWidth: 0,
       }}>
-        {/* Search Header Context */}
         <div style={{
           display: "flex", alignItems: "center", gap: 14,
           padding: isMobile && isMobileSidebarOpen ? "12px 28px 12px 72px" : "12px 28px",
@@ -1172,7 +1087,11 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
           background: P.card, borderBottom: `1px solid ${P.border}`,
           transition: "padding 0.3s ease",
         }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: P.text, flex: 1 }}>Task Board</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: P.text, flex: 1 }}>
+            {department
+              ? `${department.charAt(0).toUpperCase()}${department.slice(1)} Task Board`
+              : "Task Board"}
+          </span>
           <div style={{ position: "relative", width: 240 }}>
             <Search size={14} color={P.textMute} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
             <input
@@ -1189,9 +1108,9 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
           </div>
         </div>
 
-        {/* Board Tracks Layout */}
         <div style={{ flex: 1, overflowX: "auto", padding: "24px 28px 40px" }}>
           <DndContext
+            id={department ? `kanban-board-${department}` : "kanban-board-admin"}
             sensors={sensors}
             collisionDetection={closestCorners}
             onDragStart={handleDragStart}
@@ -1222,7 +1141,6 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
         </div>
       </div>
 
-      {/* ── Modals & Toast Frameworks ── */}
       {modalCol && (
         <AddTaskModal
           defaultCol={modalCol}
