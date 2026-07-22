@@ -43,6 +43,7 @@ const MARKETING_NAV_ITEMS = [
 
 const DESIGN_NAV_ITEMS = [
   { href: "/design/dashboard", icon: Palette, label: "Design Board" },
+  { href: "/design/tasks", icon: CheckSquare, label: "Design Tasks" },
 ];
 
 const TALENT_NAV_ITEMS = [

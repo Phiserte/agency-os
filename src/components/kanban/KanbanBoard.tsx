@@ -93,6 +93,14 @@ interface KanbanBoardProps {
    * which sees every department.
    */
   department?: string;
+  /**
+   * Current user information for the Sidebar component
+   */
+  user?: {
+    name?: string;
+    email?: string;
+    role: string;
+  };
 }
 
 interface ClientOption { id: string; name: string; email: string; company: string }
@@ -745,7 +753,7 @@ function Toast({ message, type, onDismiss }: { message: string; type: "error" | 
   );
 }
 
-export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskCreate, department }: KanbanBoardProps) {
+export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskCreate, department, user }: KanbanBoardProps) {
   const [columns,      setColumns]      = useState(() => groupByColumn(propTasks));
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskDetail | null>(null);
@@ -1062,7 +1070,7 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
           }}
         >
           <div style={{ width: 240, height: "100vh", display: "flex", flexDirection: "column" }}>
-            <Sidebar />
+            <Sidebar user={user} />
           </div>
         </div>
       ) : (
@@ -1070,7 +1078,7 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
           width: 240, minWidth: 240, height: "100vh", flexShrink: 0,
           background: P.card, borderRight: `1px solid ${P.border}`,
         }}>
-          <Sidebar />
+          <Sidebar user={user} />
         </div>
       )}
 

@@ -1,7 +1,7 @@
-// src/app/marketing/dashboard/page.tsx
-// Server Component — fetches only tasks belonging to the "marketing"
+// src/app/design/tasks/page.tsx
+// Server Component — fetches only tasks belonging to the "design"
 // department and renders the shared KanbanBoard scoped to it.
-// Accessible to "admin" and "marketing_manager" roles (see middleware.ts /
+// Accessible to "admin" and "design_manager" roles (see middleware.ts /
 // src/lib/roles.ts ROUTE_ACCESS).
 
 import { connectDB }      from "@/lib/db/mongoose"
@@ -10,7 +10,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { redirect }       from "next/navigation"
 import KanbanBoard, { type Task as BoardTask } from "@/components/kanban/KanbanBoard"
 
-async function getMarketingTasks(): Promise<BoardTask[]> {
+async function getDesignTasks(): Promise<BoardTask[]> {
   await connectDB()
 
   const tasks = await Task.find({ department: "design" })
@@ -33,7 +33,7 @@ async function getMarketingTasks(): Promise<BoardTask[]> {
   }))
 }
 
-export default async function MarketingDashboardPage() {
+export default async function DesignTasksPage() {
   const user = await getCurrentUser()
 
   // Middleware already blocks unauthorized roles from reaching this route,
@@ -43,7 +43,13 @@ export default async function MarketingDashboardPage() {
     redirect("/login")
   }
 
-  const tasks = await getMarketingTasks()
+  const tasks = await getDesignTasks()
 
-  return <KanbanBoard tasks={tasks} department="design" />
+  return (
+    <KanbanBoard
+      tasks={tasks}
+      department="design"
+      user={{ name: user.name, email: user.email, role: user.role }}
+    />
+  )
 }
