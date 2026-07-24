@@ -45,5 +45,5 @@ export default async function MarketingDashboardPage() {
 
   const tasks = await getMarketingTasks()
 
-  return <KanbanBoard tasks={tasks} department="marketing" />
+  return <KanbanBoard tasks={tasks} department="marketing" user={{ name: user.name, email: user.email, role: user.role }} />
 }

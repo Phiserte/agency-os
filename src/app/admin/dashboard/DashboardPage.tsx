@@ -73,6 +73,7 @@ interface Props {
   tasks: Task[]; tableTasks: Task[]; recentActivity: ActivityItem[]
   total: number; openTasks: number; doneThisWeek: number; lastMonthDone: number
   teamCount: number; talentCount: number
+  users: { name: string; role: string }[]
   chart: { labels: string[]; created: number[]; completed: number[] }
   dateStr: string; greet: string; nowISO: string
   user: { name: string; email: string; role: string }
@@ -225,7 +226,7 @@ const PAGE_SIZE = 8
 export default function DashboardPage({
   tasks, tableTasks, recentActivity,
   total, openTasks, doneThisWeek, lastMonthDone,
-  teamCount, talentCount, chart,
+  teamCount, talentCount, users, chart,
   dateStr, greet, nowISO, user,
 }: Props) {
   const router = useRouter()
@@ -387,6 +388,14 @@ export default function DashboardPage({
           borderBottom: `1px solid ${P.border}`,
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
         }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.svg"
+            alt="Sahynex"
+            style={{
+              height: isMobile ? 20 : 24,
+            }}
+          />
           <span style={{ 
             fontSize: isMobile ? 16 : 18, 
             fontWeight: 700, 
@@ -397,7 +406,7 @@ export default function DashboardPage({
             overflow: "hidden",
             textOverflow: "ellipsis"
           }}>
-            Dashboard
+            
           </span>
 
           {/* Search */}
@@ -569,7 +578,7 @@ export default function DashboardPage({
           {/* Greeting */}
           <div style={{ marginBottom: 20 }}>
             <h1 style={{ fontSize: isMobile ? 20 : 22, fontWeight: 700, margin: 0, letterSpacing: "-0.4px" }}>
-              {greet}, {user.name.split(" ")[0]} 👋
+              {greet}, {user.name.split(" ")[0]}
             </h1>
             <p style={{ fontSize: 12, color: P.textSub, margin: "4px 0 0" }}>{dateStr}</p>
           </div>
@@ -658,6 +667,48 @@ export default function DashboardPage({
               </div>
             ))}
           </div>
+
+          {/* ── All Users (avatar stack under the stat cards) ──
+               Shows everyone except admins — talents, marketing managers,
+               and design managers all appear here, not just talents. */}
+          {users.length > 0 && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+              background: P.card, border: `1px solid ${P.border}`,
+              borderRadius: 12, padding: "12px 16px", marginBottom: 20,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}>
+              <span style={{ fontSize: 12, color: P.textSub, fontWeight: 600, marginRight: 4 }}>
+                All Users
+              </span>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                {users.slice(0, 8).map((u, i) => (
+                  <div
+                    key={u.name + i}
+                    title={`${u.name} · ${u.role.replace("_", " ")}`}
+                    style={{
+                      marginLeft: i === 0 ? 0 : -8,
+                      border: `2px solid ${P.card}`,
+                      borderRadius: "50%",
+                      zIndex: 8 - i,
+                    }}
+                  >
+                    <Avatar name={u.name} size={30} />
+                  </div>
+                ))}
+                {users.length > 8 && (
+                  <div style={{
+                    marginLeft: -8, width: 30, height: 30, borderRadius: "50%",
+                    background: P.bg, border: `2px solid ${P.card}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 600, color: P.textSub,
+                  }}>
+                    +{users.length - 8}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ── MID ROW (STACK ON MOBILE / BALANCED 380px GRID ON DESKTOP) ── */}
           <div style={{ 

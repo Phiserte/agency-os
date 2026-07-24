@@ -1042,20 +1042,15 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
 
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
-      {isMobile && (
-        <button
-          onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+      {/* Dim backdrop behind the mobile sidebar drawer — tap to close */}
+      {isMobile && isMobileSidebarOpen && (
+        <div
+          onClick={() => setIsMobileSidebarOpen(false)}
           style={{
-            position: "fixed", top: 16, left: 16, zIndex: 1000,
-            width: 40, height: 40, borderRadius: 8,
-            background: P.card, border: `1px solid ${P.border}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", color: P.text,
+            position: "fixed", inset: 0, zIndex: 998,
+            background: "rgba(0,0,0,0.35)",
           }}
-          title={isMobileSidebarOpen ? "Close sidebar" : "Open sidebar"}
-        >
-          {isMobileSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
-        </button>
+        />
       )}
 
       {isMobile ? (
@@ -1065,8 +1060,9 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
             width: isMobileSidebarOpen ? 240 : 0,
             minWidth: isMobileSidebarOpen ? 240 : 0,
             height: "100vh", position: "fixed", left: 0, top: 0, zIndex: 999,
-            transition: "width 0.3s ease, min-width 0.3s ease",
-            overflow: "hidden", background: P.card, borderRight: `1px solid ${P.border}`,
+            transition: "width 0.25s cubic-bezier(0.4,0,0.2,1), min-width 0.25s cubic-bezier(0.4,0,0.2,1)",
+            overflow: "hidden", background: P.card,
+            boxShadow: isMobileSidebarOpen ? "4px 0 24px rgba(0,0,0,0.15)" : "none",
           }}
         >
           <div style={{ width: 240, height: "100vh", display: "flex", flexDirection: "column" }}>
@@ -1088,23 +1084,54 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         color: P.text, minWidth: 0,
       }}>
+        {/* Header — toggle button lives inline here now, so nothing can
+            float over the logo. Logo is hidden on mobile since there
+            isn't room for logo + title + search + toggle at phone widths;
+            the title alone communicates the same context. */}
         <div style={{
           display: "flex", alignItems: "center", gap: 14,
-          padding: isMobile && isMobileSidebarOpen ? "12px 28px 12px 72px" : "12px 28px",
+          padding: isMobile ? "10px 16px" : "12px 28px",
           height: 56, flexShrink: 0,
           background: P.card, borderBottom: `1px solid ${P.border}`,
-          transition: "padding 0.3s ease",
         }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: P.text, flex: 1 }}>
+          {isMobile && (
+            <button
+              onClick={() => setIsMobileSidebarOpen(o => !o)}
+              style={{
+                width: 34, height: 34, borderRadius: 8, flexShrink: 0,
+                background: P.bg, border: `1px solid ${P.border}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", color: P.textSub,
+              }}
+              title={isMobileSidebarOpen ? "Close sidebar" : "Open sidebar"}
+            >
+              {isMobileSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+            </button>
+          )}
+
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.svg"
+            alt="Sahynex"
+            style={{
+              height: isMobile ? 20 : 24,
+            }}
+          />
+
+          <span style={{
+            fontSize: isMobile ? 14 : 16, fontWeight: 700, color: P.text, flex: 1,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
             {department
               ? `${department.charAt(0).toUpperCase()}${department.slice(1)} Task Board`
-              : "Task Board"}
+              : ""}
           </span>
-          <div style={{ position: "relative", width: 240 }}>
+
+          <div style={{ position: "relative", width: isMobile ? 140 : 240, flexShrink: 0 }}>
             <Search size={14} color={P.textMute} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
             <input
               type="text"
-              placeholder="Search tasks..."
+              placeholder="Search..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{

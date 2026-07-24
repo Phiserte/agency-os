@@ -33,12 +33,11 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/admin/tasks",     icon: CheckSquare,      label: "Tasks" },
   { href: "/admin/talents",   icon: Users,            label: "Talents" },
-  { href: "/admin/team",      icon: UserPlus,         label: "Team" },
-  { href: "/admin/reports",   icon: BarChart3,        label: "Reports" },
 ];
 
 const MARKETING_NAV_ITEMS = [
   { href: "/marketing/dashboard", icon: Megaphone, label: "Marketing Board" },
+  { href: "/marketing/tasks", icon: CheckSquare, label: "Marketing Tasks" },
 ];
 
 const DESIGN_NAV_ITEMS = [

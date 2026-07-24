@@ -9,10 +9,16 @@ import DashboardPage      from "./DashboardPage"
 async function getData() {
   await connectDB()
 
-  const [tasks, teamCount, talentCount] = await Promise.all([
+  const [tasks, teamCount, talentCount, allUsers] = await Promise.all([
     Task.find().sort({ createdAt: -1 }).lean(),
     User.countDocuments({ role: "admin" }),
-    User.countDocuments({ role: "talent" }),
+    // Counts talents AND both manager roles, not just talents — so the
+    // stat card reflects everyone who isn't an admin.
+    User.countDocuments({ role: { $in: ["talent", "marketing_manager", "design_manager"] } }),
+    // Full list (name + role) for the avatar stack under the stat cards.
+    // Excludes admins since this row is meant to show staff/talent, not
+    // the person viewing the dashboard.
+    User.find({ role: { $ne: "admin" } }).select("name role").lean(),
   ])
 
   const now      = new Date()
@@ -103,6 +109,7 @@ async function getData() {
     lastMonthDone,
     teamCount,
     talentCount,
+    users: allUsers.map(u => ({ name: u.name, role: u.role })),
     chart: { labels: chartLabels, created: chartCreated, completed: chartCompleted },
     dateStr,
     greet,
