@@ -5,7 +5,8 @@ import { useRouter }            from "next/navigation"
 import {
   CheckCircle2, Clock3, AlertTriangle,
   CheckSquare, ChevronDown, ChevronUp,
-  MessageSquare, LogOut, Menu, X, Settings
+  MessageSquare, LogOut, Menu, X, Settings,
+  Download
 } from "lucide-react"
 import {
   DndContext, useDroppable, useDraggable,
@@ -69,7 +70,7 @@ const TAG_COLORS = [
 interface Task {
   id: string; title: string; description: string
   priority: string; status: string; assignee: string
-  tags: string[]; due: string; progress: number; createdAt: string
+  assignedBy?: string; tags: string[]; due: string; progress: number; createdAt: string
 }
 
 interface Props {
@@ -405,6 +406,7 @@ export default function ClientDashboard({ tasks: initialTasks, user, dateStr, gr
   const [logging,      setLogging]      = useState(false)
   const [isMounted,    setIsMounted]    = useState(false)
   const [draggingTaskIds, setDraggingTaskIds] = useState<Set<string>>(new Set())
+  const [exporting,    setExporting]    = useState(false)
 
   // Responsive sidebar state
   const [isMobile, setIsMobile] = useState(false)
@@ -535,6 +537,39 @@ export default function ClientDashboard({ tasks: initialTasks, user, dateStr, gr
     router.push("/login")
   }
 
+  async function handleExportWorksheet() {
+    setExporting(true)
+    try {
+      const response = await fetch("/api/worksheet/export")
+      
+      if (!response.ok) {
+        const error = await response.json()
+        alert(error.error || "Failed to export worksheet")
+        return
+      }
+
+      // Get the filename from the Content-Disposition header
+      const contentDisposition = response.headers.get("Content-Disposition")
+      const filename = contentDisposition?.match(/filename="(.+)"/)?.[1] || "worksheet.xlsx"
+
+      // Create a blob and download it
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error("Failed to export worksheet:", error)
+      alert("Failed to export worksheet. Please try again.")
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div style={{
       minHeight: "100vh", background: P.bg0,
@@ -660,6 +695,26 @@ export default function ClientDashboard({ tasks: initialTasks, user, dateStr, gr
                 {overdue} overdue
               </div>
             )}
+
+            {/* Worksheet Export Button */}
+            <button
+              onClick={handleExportWorksheet}
+              disabled={exporting || total === 0}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                background: exporting ? P.purpleDim : P.card,
+                border: `1px solid ${exporting ? P.purple : P.border}`,
+                borderRadius: 8, padding: "5px 12px",
+                fontSize: 11, color: exporting ? P.purpleText : P.textSub,
+                fontWeight: 600, cursor: exporting ? "not-allowed" : "pointer",
+                transition: "all 0.15s",
+                opacity: total === 0 ? 0.5 : 1,
+              }}
+              title={total === 0 ? "No completed tasks to export" : "Download worksheet"}
+            >
+              <Download size={12} strokeWidth={2} />
+              {exporting ? "Exporting..." : "Worksheet"}
+            </button>
 
             {/* Profile Dropdown */}
             <div

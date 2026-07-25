@@ -13,6 +13,7 @@ export interface Task {
   priority: Priority
   status: ColumnId
   assignee?: string
+  assignedBy?: string
   talentId?: string | null
   tags?: string[]
   due?: string

@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server"
+import mongoose from "mongoose"
 
 import { connectDB } from "@/lib/db/mongoose"
 import { Task, Status } from "@/models/Task"
+import { User } from "@/models/User" // Imported User model to lookup talent IDs
+import { getCurrentUser } from "@/lib/auth"
 
 const VALID_STATUSES: Status[] = ["backlog", "todo", "inprogress", "review", "done"]
 const VALID_DEPARTMENTS = ["marketing", "design"] as const
 
 // ─── GET /api/tasks ───────────────────────────────────────────────────────────
-// Returns tasks sorted by newest first.
-// Supports optional filters:
-//   ?status=      restrict to a single status column
-//   ?department=  restrict to a single department (marketing/design boards)
-//   ?talentId=    restrict to tasks assigned to a specific talent
-// Filters can be combined; all provided filters are ANDed together.
 export async function GET(req: Request) {
   try {
     await connectDB()
@@ -24,7 +21,6 @@ export async function GET(req: Request) {
 
     const filter: Record<string, unknown> = {}
 
-    // Cast to Status only if it's a valid enum value — otherwise ignore it
     if (rawStatus && VALID_STATUSES.includes(rawStatus as Status)) {
       filter.status = rawStatus as Status
     }
@@ -33,8 +29,14 @@ export async function GET(req: Request) {
       filter.department = rawDepartment
     }
 
+    // Cast rawTalentId string into an ObjectId for Mongoose queries
     if (rawTalentId) {
-      filter.talentId = rawTalentId
+      if (mongoose.Types.ObjectId.isValid(rawTalentId)) {
+        filter.talentId = new mongoose.Types.ObjectId(rawTalentId)
+      } else {
+        // Fallback search by assignee name if an invalid/string ID was passed
+        filter.assignee = rawTalentId
+      }
     }
 
     const tasks = await Task.find(filter)
@@ -52,13 +54,11 @@ export async function GET(req: Request) {
 }
 
 // ─── POST /api/tasks ──────────────────────────────────────────────────────────
-// Creates a new task. Requires { title, priority } in the request body.
-// Optional: description, assignee, tags, due, status, progress, department, talentId.
 export async function POST(req: Request) {
   try {
     await connectDB()
 
-    let body: unknown
+    let body: Record<string, any>
 
     try {
       body = await req.json()
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const { title, priority } = body as Record<string, unknown>
+    const { title, priority, assignee } = body
 
     if (!title || typeof title !== "string" || !title.trim()) {
       return NextResponse.json(
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
     }
 
     const validStatuses = ["backlog", "todo", "inprogress", "review", "done"]
-    const { status, department } = body as Record<string, unknown>
+    const { status, department } = body
     if (status && !validStatuses.includes(status as string)) {
       return NextResponse.json(
         { error: `Field 'status' must be one of: ${validStatuses.join(", ")}.` },
@@ -109,7 +109,31 @@ export async function POST(req: Request) {
       )
     }
 
-    const task = await Task.create(body)
+    // Capture who is assigning this task
+    const currentUser = await getCurrentUser()
+    const assignedBy = currentUser?.name || ""
+
+    // ── Handle talentId resolution ──────────────────────────────────────────────
+    let talentId = body.talentId
+
+    // Clean empty string inputs
+    if (!talentId || talentId === "" || !mongoose.Types.ObjectId.isValid(talentId)) {
+      talentId = null
+    }
+
+    // Fallback: If talentId was missing/null but an assignee name was passed ("Tejas")
+    if (!talentId && assignee && typeof assignee === "string") {
+      const matchedUser = await User.findOne({ name: assignee }).lean()
+      if (matchedUser) {
+        talentId = matchedUser._id
+      }
+    }
+
+    const task = await Task.create({
+      ...body,
+      talentId: talentId ? new mongoose.Types.ObjectId(talentId) : null,
+      assignedBy,
+    })
 
     return NextResponse.json(task, { status: 201 })
   } catch (error) {

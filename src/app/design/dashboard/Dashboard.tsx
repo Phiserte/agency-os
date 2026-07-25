@@ -61,7 +61,7 @@ const AV_COLORS = [
 interface Task {
   id: string; title: string; description: string
   priority: string; status: string; assignee: string
-  tags: string[]; due: string
+  assignedBy?: string; tags: string[]; due: string
   progress: number; createdAt: string; updatedAt: string
 }
 
@@ -451,7 +451,9 @@ export default function DesignDashboard({
                 })}
               </div>
             )}
-          </div>
+          </div> 
+          
+          
 
           {/* ── TASK TABLE ── */}
           <div style={{
@@ -556,4 +558,4 @@ export default function DesignDashboard({
       </div>
     </div>
   )
-}
+} 

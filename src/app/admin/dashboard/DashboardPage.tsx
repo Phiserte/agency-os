@@ -60,7 +60,7 @@ const AV_COLORS = [
 interface Task {
   id: string; title: string; description: string
   priority: string; status: string; assignee: string
-  talentId?: string; tags: string[]; due: string
+  assignedBy?: string; talentId?: string; tags: string[]; due: string
   progress: number; createdAt: string; updatedAt: string
 }
 

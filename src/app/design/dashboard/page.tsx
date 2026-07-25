@@ -1,7 +1,8 @@
-// src/app/marketing/dashboard/page.tsx
-// Server Component — fetches only tasks belonging to the "marketing"
-// department and computes the stats/activity feed for MarketingDashboard.
-// Accessible to "admin" and "marketing_manager" roles (see
+// src/app/design/dashboard/page.tsx
+// Server Component — fetches tasks belonging to the "design" department
+// AND tasks assigned directly to this manager by admin, computes stats/
+// activity feed, and separates out "assigned to you" tasks for their own
+// section. Accessible to "admin" and "design_manager" roles (see
 // src/lib/roles.ts ROUTE_ACCESS / middleware.ts).
 
 import { connectDB }      from "@/lib/db/mongoose"
@@ -10,10 +11,18 @@ import { getCurrentUser } from "@/lib/auth"
 import { redirect }       from "next/navigation"
 import DesignDashboard from "./Dashboard"
 
-async function getData() {
+async function getData(managerId: string) {
   await connectDB()
 
-  const tasks = await Task.find({ department: "design" })
+  // Tasks that either belong to the design department OR were assigned
+  // directly to this manager by admin (a directly-assigned task may not
+  // have department set, so department-only filtering silently hides it).
+  const tasks = await Task.find({
+    $or: [
+      { department: "design" },
+      { talentId: managerId },
+    ],
+  })
     .sort({ createdAt: -1 })
     .lean()
 
@@ -27,6 +36,7 @@ async function getData() {
     priority:    t.priority as string,
     status:      t.status as string,
     assignee:    t.assignee ?? "",
+    talentId:    t.talentId?.toString() ?? undefined,
     tags:        t.tags ?? [],
     due:         t.due ?? "",
     progress:    t.progress ?? 0,
@@ -59,6 +69,10 @@ async function getData() {
     return (order[a.status] ?? 5) - (order[b.status] ?? 5)
   })
 
+  // Tasks admin assigned directly to this manager — surfaced as their own
+  // section in the dashboard, separate from the general department feed.
+  const assignedTasks = serialized.filter(t => t.talentId === managerId)
+
   const dateStr = now.toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" })
   const hour    = now.getHours()
   const greet   = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
@@ -68,6 +82,7 @@ async function getData() {
     tasks: serialized,
     tableTasks,
     recentActivity,
+    assignedTasks,
     total,
     openTasks,
     doneThisWeek,
@@ -87,7 +102,7 @@ export default async function DesignDashboardPage() {
     redirect("/login")
   }
 
-  const data = await getData()
+  const data = await getData(user.id)
 
   return (
     <DesignDashboard

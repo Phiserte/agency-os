@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { connectDB } from "@/lib/db/mongoose"
 import { Task } from "@/models/Task"
+import { WorksheetEntry } from "@/models/WorksheetEntry"
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -122,6 +123,18 @@ export async function PATCH(req: Request, context: RouteContext) {
       }
     }
 
+    // Fetch the task's current state BEFORE updating, so we can detect
+    // whether this update is actually a transition INTO "done" (not just
+    // re-saving a task that was already done).
+    const existingTask = await Task.findById(id).lean()
+
+    if (!existingTask) {
+      return NextResponse.json(
+        { error: "Task not found." },
+        { status: 404 }
+      )
+    }
+
     const updatedTask = await Task.findByIdAndUpdate(
       id,
       { $set: sanitized },
@@ -133,6 +146,30 @@ export async function PATCH(req: Request, context: RouteContext) {
         { error: "Task not found." },
         { status: 404 }
       )
+    }
+
+    // ── Worksheet trigger ────────────────────────────────────────────────
+    // If this update just moved the task into "done" (it wasn't done
+    // before) and it has a talent assigned, log a worksheet entry. This
+    // is what the talent's "Download Worksheet" export reads from later —
+    // nothing is written to a file here, just a DB record.
+    const justCompleted = sanitized.status === "done" && existingTask.status !== "done"
+    if (justCompleted && updatedTask.talentId) {
+      try {
+        await WorksheetEntry.create({
+          taskId:      updatedTask._id,
+          talentId:    updatedTask.talentId,
+          taskTitle:   updatedTask.title,
+          department:  updatedTask.department ?? null,
+          priority:    updatedTask.priority,
+          assignedBy:  updatedTask.assignedBy ?? "",
+          completedAt: new Date(),
+        })
+      } catch (worksheetError) {
+        // Don't fail the task update if worksheet logging fails — log it
+        // and move on, since the task change itself already succeeded.
+        console.error("[PATCH /api/tasks/:id] worksheet entry failed", worksheetError)
+      }
     }
 
     return NextResponse.json(updatedTask, { status: 200 })

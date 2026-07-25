@@ -39,6 +39,7 @@ export interface TaskDetail {
   priority: string
   status: string
   assignee?: string
+  assignedBy?: string
   clientId?: string | null
   tags?: string[]
   due?: string
@@ -384,6 +385,23 @@ export default function TaskDetailModal({
                 {task.assignee
                   ? <><Avatar name={task.assignee} size={22} /><span style={{ fontSize: 13, color: T.t1, fontWeight: 600 }}>{task.assignee}</span></>
                   : <span style={{ fontSize: 13, color: T.t3, fontWeight: 500 }}>Unassigned</span>
+                }
+              </div>
+            </div>
+
+            {/* Assigned By Card Block */}
+            <div style={{
+              background: T.bg1, border: `1px solid ${T.border}`,
+              borderRadius: 10, padding: "12px 14px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <User size={13} color={T.t3} strokeWidth={2} />
+                <span style={{ fontSize: 10, color: T.t2, fontWeight: 700, letterSpacing: "0.5px" }}>ASSIGNED BY</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                {task.assignedBy
+                  ? <><Avatar name={task.assignedBy} size={22} /><span style={{ fontSize: 13, color: T.t1, fontWeight: 600 }}>{task.assignedBy}</span></>
+                  : <span style={{ fontSize: 13, color: T.t3, fontWeight: 500 }}>Unknown</span>
                 }
               </div>
             </div>

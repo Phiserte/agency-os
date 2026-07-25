@@ -69,10 +69,11 @@ export interface Task {
   id: string;
   _id?: string;
   title: string;
-  clientId?: string | null;
+  talentId?: string | null;
   description?: string;
   priority: Priority;
   assignee?: string;
+  assignedBy?: string;
   tags?: string[];
   due?: string;
   progress?: number;
@@ -559,9 +560,10 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
   const [tags,     setTags]     = useState("");
   const [due,      setDue]      = useState("");
   const [col,      setCol]      = useState<ColumnId>(defaultCol);
-  const [clientId, setClientId] = useState("");
+  const [talentId, setTalentId] = useState("");
   const [clients,  setClients]  = useState<ClientOption[]>([]);
   const [loadingCl,setLoadingCl]= useState(true);
+  const [error,    setError]    = useState("");
   const uid = useId();
 
   useEffect(() => {
@@ -573,15 +575,27 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    
     if (!title.trim()) return;
-    const sc = clients.find(c => c.id === clientId);
+    
+    // Require talentId (assignee) to be selected
+    if (!talentId) {
+      setError("Please select a talent to assign this task to.");
+      return;
+    }
+    
+    const sc = clients.find(c => c.id === talentId);
     onAdd({
-      id: generateId(), title: title.trim(),
-      description: desc.trim() || undefined, priority,
+      id: generateId(), 
+      title: title.trim(),
+      description: desc.trim() || undefined, 
+      priority,
       assignee: assignee.trim() || sc?.name || undefined,
-      clientId: clientId || undefined,
+      talentId: talentId || undefined,
       tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-      due: due || undefined, status: col,
+      due: due || undefined, 
+      status: col,
     });
     onClose();
   }
@@ -666,22 +680,27 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
           </div>
 
           <div>
-            <label htmlFor={`${uid}-cl`} style={label}>ASSIGNEE</label>
-            <select id={`${uid}-cl`} value={clientId}
+            <label htmlFor={`${uid}-cl`} style={label}>ASSIGNEE *</label>
+            <select id={`${uid}-cl`} value={talentId}
               onChange={e => {
-                setClientId(e.target.value);
+                setTalentId(e.target.value);
                 const c = clients.find(x => x.id === e.target.value);
                 if (c) setAssignee(c.name);
               }}
               disabled={loadingCl} style={{ ...field, cursor: "pointer" }} onFocus={onFocus} onBlur={onBlur}>
-              <option value="">{loadingCl ? "Loading..." : "No Assignee (internal task)"}</option>
+              <option value="">{loadingCl ? "Loading..." : "Select a talent..."}</option>
               {clients.map(c => (
                 <option key={c.id} value={c.id}>{c.name}{c.company ? ` — ${c.company}` : ""}</option>
               ))}
             </select>
-            {clientId && (
+            {talentId && (
               <p style={{ fontSize: 11, color: P.teal, marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}>
                 ✓ This task will appear in the talent portal
+              </p>
+            )}
+            {error && (
+              <p style={{ fontSize: 11, color: P.red, marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}>
+                ⚠ {error}
               </p>
             )}
           </div>

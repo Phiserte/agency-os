@@ -10,10 +10,11 @@ export interface ITask extends Document {
   priority:    Priority
   status:      Status
   assignee:    string
+  assignedBy:  string                 // name of whoever created/assigned this task
   talentId:    Types.ObjectId | null  // links task to a talent User
   department:  Department | null      // scopes task to marketing/design manager boards
   tags:        string[]
-  due:         string                 // ISO date string e.g. "2025-06-10"
+  due:         string                 // ISO date string e.g. "2026-07-31"
   progress:    number
   createdAt:   Date
   updatedAt:   Date
@@ -53,6 +54,11 @@ const TaskSchema = new Schema<ITask>(
       trim:    true,
       default: "",
     },
+    assignedBy: {
+      type:    String,
+      trim:    true,
+      default: "",
+    },
     talentId: {
       type:    mongoose.Schema.Types.ObjectId,
       ref:     "User",   // references the User model
@@ -71,7 +77,7 @@ const TaskSchema = new Schema<ITask>(
       default: [],
     },
     due: {
-      type:    String,   // store as ISO string — "2025-06-10"
+      type:    String,   // store as ISO string — "2026-07-31"
       default: "",
     },
     progress: {
