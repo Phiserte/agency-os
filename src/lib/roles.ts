@@ -7,6 +7,7 @@ export const ROLES = [
   "admin",
   "marketing_manager",
   "design_manager",
+  "dev_manager",
   "talent",
 ] as const
 
@@ -17,6 +18,7 @@ export const ROLE_HOME: Record<UserRole, string> = {
   admin:              "/admin/dashboard",
   marketing_manager:  "/marketing/dashboard",
   design_manager:     "/design/dashboard",
+  dev_manager:        "/dev/dashboard",
   talent:             "/talent/dashboard",
 }
 
@@ -27,6 +29,7 @@ export const ROUTE_ACCESS: { prefix: string; roles: UserRole[] }[] = [
   { prefix: "/admin",     roles: ["admin"] },
   { prefix: "/marketing", roles: ["admin", "marketing_manager"] },
   { prefix: "/design",    roles: ["admin", "design_manager"] },
+  { prefix: "/dev",       roles: ["admin", "dev_manager"] },
   { prefix: "/talent",    roles: ["talent"] },
 ]
 
@@ -36,6 +39,7 @@ export const ROUTE_ACCESS: { prefix: string; roles: UserRole[] }[] = [
 export const ROLE_DEPARTMENT: Partial<Record<UserRole, string>> = {
   marketing_manager: "marketing",
   design_manager:    "design",
+  dev_manager:       "dev",
 }
 
 export function isValidRole(value: string): value is UserRole {

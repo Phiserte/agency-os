@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { connectDB } from "@/lib/db/mongoose"
 import { User }      from "@/models/User"
 import { signToken, setAuthCookie } from "@/lib/auth"
+import { ROLE_HOME } from "@/lib/roles"
 
 export async function POST(req: Request) {
   try {
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
     await setAuthCookie(token)
 
     // Tell the client where to redirect based on role
-    const redirectTo = user.role === "admin" ? "/admin/dashboard" : "/talent/dashboard"
+    const redirectTo = ROLE_HOME[user.role as keyof typeof ROLE_HOME] || "/talent/dashboard"
 
     return NextResponse.json(
       { success: true, role: user.role, redirectTo },

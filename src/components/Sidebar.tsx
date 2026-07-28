@@ -12,6 +12,7 @@ import {
   LogOut,
   Megaphone,
   Palette,
+  Code2,
 } from "lucide-react";
 
 // ── Light Theme Palette ──────────────────────────────────────────────────────
@@ -50,6 +51,11 @@ const TALENT_NAV_ITEMS = [
   // Add additional talent-accessible paths here if you build them out later
 ];
 
+const DEV_NAV_ITEMS = [
+  { href: "/dev/dashboard", icon: Code2, label: "Dev Board" },
+  { href: "/dev/tasks", icon: CheckSquare, label: "Dev Tasks" },
+];
+
 interface SidebarProps {
   user?: {
     name?: string;
@@ -64,6 +70,7 @@ const ROLE_BRAND: Record<string, { initial: string; label: string; navItems: typ
   admin:              { initial: "M", label: "Management",       navItems: ADMIN_NAV_ITEMS },
   marketing_manager:  { initial: "M", label: "Marketing Portal",  navItems: MARKETING_NAV_ITEMS },
   design_manager:     { initial: "D", label: "Design Portal",     navItems: DESIGN_NAV_ITEMS },
+  dev_manager:        { initial: "D", label: "Dev Portal",        navItems: DEV_NAV_ITEMS },
   talent:             { initial: "T", label: "Talent Portal",     navItems: TALENT_NAV_ITEMS },
 }
 

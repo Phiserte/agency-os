@@ -2,7 +2,7 @@ import mongoose, { Document, Model, Schema, Types } from "mongoose"
 
 export type Priority   = "high" | "medium" | "low"
 export type Status     = "backlog" | "todo" | "inprogress" | "review" | "done"
-export type Department = "marketing" | "design"
+export type Department = "marketing" | "design" | "dev"
 
 export interface ITask extends Document {
   title:       string
@@ -67,7 +67,7 @@ const TaskSchema = new Schema<ITask>(
     department: {
       type:    String,
       enum:    {
-        values:  ["marketing", "design"],
+        values:  ["marketing", "design", "dev"],
         message: "{VALUE} is not a valid department",
       },
       default: null,
