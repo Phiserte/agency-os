@@ -9,7 +9,7 @@ import KanbanBoard, { type Task as BoardTask, type AssigneeOption } from "@/comp
 async function getDesignTasks(): Promise<BoardTask[]> {
   await connectDB()
 
-  const tasks = await Task.find({ department: "design" })
+  const tasks = await Task.find({ department: "dev" })
     .sort({ createdAt: -1 })
     .lean()
 
@@ -25,7 +25,7 @@ async function getDesignTasks(): Promise<BoardTask[]> {
     tags:        t.tags ?? [],
     due:         t.due ?? "",
     progress:    t.progress ?? 0,
-    department:  t.department ?? "design",
+    department:  t.department ?? "dev",
   }))
 }
 
@@ -36,7 +36,7 @@ async function getDesignTasks(): Promise<BoardTask[]> {
 async function getDesignAssignees(): Promise<AssigneeOption[]> {
   await connectDB()
 
-  const assignees = await User.find({ role: "talent", department: "design" })
+  const assignees = await User.find({ role: "talent", department: "dev" })
     .select("_id name email department")
     .lean()
 
@@ -51,7 +51,7 @@ async function getDesignAssignees(): Promise<AssigneeOption[]> {
 export default async function DesignTasksPage() {
   const user = await getCurrentUser()
 
-  if (!user || (user.role !== "admin" && user.role !== "design_manager")) {
+  if (!user || (user.role !== "admin" && user.role !== "dev_manager")) {
     redirect("/login")
   }
 

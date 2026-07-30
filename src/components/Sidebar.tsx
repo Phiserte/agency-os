@@ -30,30 +30,36 @@ const P = {
 
 // Nav configs per workspace role. Add a role here + one array below when a
 // new role is introduced — no other logic needs to change.
+// "By Person" was added to every manager-level role + admin so they can see
+// each individual's tasks grouped together, separate from the status board.
 const ADMIN_NAV_ITEMS = [
   { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/admin/tasks",     icon: CheckSquare,      label: "Tasks" },
   { href: "/admin/talents",   icon: Users,            label: "Talents" },
+  { href: "/admin/team",      icon: UserPlus,         label: "By Person" },
 ];
 
 const MARKETING_NAV_ITEMS = [
-  { href: "/marketing/dashboard", icon: Megaphone, label: "Marketing Board" },
-  { href: "/marketing/tasks", icon: CheckSquare, label: "Marketing Tasks" },
+  { href: "/marketing/dashboard", icon: Megaphone,   label: "Marketing Board" },
+  { href: "/marketing/tasks",     icon: CheckSquare, label: "Marketing Tasks" },
+  { href: "/marketing/team",      icon: UserPlus,    label: "By Person" },
 ];
 
 const DESIGN_NAV_ITEMS = [
-  { href: "/design/dashboard", icon: Palette, label: "Design Board" },
-  { href: "/design/tasks", icon: CheckSquare, label: "Design Tasks" },
+  { href: "/design/dashboard", icon: Palette,     label: "Design Board" },
+  { href: "/design/tasks",     icon: CheckSquare, label: "Design Tasks" },
+  { href: "/design/team",      icon: UserPlus,    label: "By Person" },
 ];
 
 const TALENT_NAV_ITEMS = [
   { href: "/talent/dashboard", icon: LayoutDashboard, label: "My Dashboard" },
-  // Add additional talent-accessible paths here if you build them out later
+  // Talents only see their own tasks already, so no "By Person" tab here.
 ];
 
 const DEV_NAV_ITEMS = [
-  { href: "/dev/dashboard", icon: Code2, label: "Dev Board" },
-  { href: "/dev/tasks", icon: CheckSquare, label: "Dev Tasks" },
+  { href: "/dev/dashboard", icon: Code2,       label: "Dev Board" },
+  { href: "/dev/tasks",     icon: CheckSquare, label: "Dev Tasks" },
+  { href: "/dev/team",      icon: UserPlus,    label: "By Person" },
 ];
 
 interface SidebarProps {

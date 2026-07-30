@@ -2,12 +2,26 @@ import { NextResponse } from "next/server"
 import mongoose from "mongoose"
 
 import { connectDB } from "@/lib/db/mongoose"
-import { Task, Status } from "@/models/Task"
-import { User } from "@/models/User" // Imported User model to lookup talent IDs
+import { Task, Status, Department } from "@/models/Task"
+import { User } from "@/models/User"
 import { getCurrentUser } from "@/lib/auth"
 
 const VALID_STATUSES: Status[] = ["backlog", "todo", "inprogress", "review", "done"]
-const VALID_DEPARTMENTS = ["marketing", "design"] as const
+
+// Every department a manager role can create tasks in. "dev" was previously
+// missing here, which would have 422'd any dev-workspace task that tried to
+// pass department explicitly.
+const VALID_DEPARTMENTS: Department[] = ["marketing", "design", "dev"]
+
+// Maps a manager's role to the department their tasks belong to. This is the
+// source of truth for `department` — we no longer trust the client to send
+// it, since the "Add task" modal never did, which is why every task was
+// landing with department: null.
+const ROLE_TO_DEPARTMENT: Record<string, Department> = {
+  marketing_manager: "marketing",
+  design_manager:     "design",
+  dev_manager:         "dev",
+}
 
 // ─── GET /api/tasks ───────────────────────────────────────────────────────────
 export async function GET(req: Request) {
@@ -29,12 +43,10 @@ export async function GET(req: Request) {
       filter.department = rawDepartment
     }
 
-    // Cast rawTalentId string into an ObjectId for Mongoose queries
     if (rawTalentId) {
       if (mongoose.Types.ObjectId.isValid(rawTalentId)) {
         filter.talentId = new mongoose.Types.ObjectId(rawTalentId)
       } else {
-        // Fallback search by assignee name if an invalid/string ID was passed
         filter.assignee = rawTalentId
       }
     }
@@ -76,7 +88,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const { title, priority, assignee } = body
+    const { title, priority, assignee, status } = body
 
     if (!title || typeof title !== "string" || !title.trim()) {
       return NextResponse.json(
@@ -93,35 +105,47 @@ export async function POST(req: Request) {
       )
     }
 
-    const validStatuses = ["backlog", "todo", "inprogress", "review", "done"]
-    const { status, department } = body
-    if (status && !validStatuses.includes(status as string)) {
+    if (status && !VALID_STATUSES.includes(status as Status)) {
       return NextResponse.json(
-        { error: `Field 'status' must be one of: ${validStatuses.join(", ")}.` },
+        { error: `Field 'status' must be one of: ${VALID_STATUSES.join(", ")}.` },
         { status: 422 }
       )
     }
 
-    if (department && !(VALID_DEPARTMENTS as readonly string[]).includes(department as string)) {
-      return NextResponse.json(
-        { error: `Field 'department' must be one of: ${VALID_DEPARTMENTS.join(", ")}.` },
-        { status: 422 }
-      )
-    }
-
-    // Capture who is assigning this task
     const currentUser = await getCurrentUser()
     const assignedBy = currentUser?.name || ""
 
-    // ── Handle talentId resolution ──────────────────────────────────────────────
+    // ── Resolve department server-side ──────────────────────────────────────
+    // Manager roles are pinned to their own department, no matter what (or
+    // whether) the client sends. Admins may create a task for any
+    // department, but must say which one explicitly.
+    let department: Department | null = null
+
+    if (currentUser?.role && ROLE_TO_DEPARTMENT[currentUser.role]) {
+      department = ROLE_TO_DEPARTMENT[currentUser.role]
+    } else if (currentUser?.role === "admin") {
+      if (body.department && VALID_DEPARTMENTS.includes(body.department)) {
+        department = body.department
+      } else {
+        return NextResponse.json(
+          { error: `Admin task creation requires a 'department' field, one of: ${VALID_DEPARTMENTS.join(", ")}.` },
+          { status: 422 }
+        )
+      }
+    } else {
+      return NextResponse.json(
+        { error: "Could not determine department for this task. User role is missing or unrecognized." },
+        { status: 403 }
+      )
+    }
+
+    // ── Handle talentId resolution ──────────────────────────────────────────
     let talentId = body.talentId
 
-    // Clean empty string inputs
     if (!talentId || talentId === "" || !mongoose.Types.ObjectId.isValid(talentId)) {
       talentId = null
     }
 
-    // Fallback: If talentId was missing/null but an assignee name was passed ("Tejas")
     if (!talentId && assignee && typeof assignee === "string") {
       const matchedUser = await User.findOne({ name: assignee }).lean()
       if (matchedUser) {
@@ -131,6 +155,7 @@ export async function POST(req: Request) {
 
     const task = await Task.create({
       ...body,
+      department,
       talentId: talentId ? new mongoose.Types.ObjectId(talentId) : null,
       assignedBy,
     })

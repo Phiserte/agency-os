@@ -1,16 +1,12 @@
-// src/app/marketing/dashboard/page.tsx
-// Server Component — fetches only tasks belonging to the "marketing"
-// department and renders the shared KanbanBoard scoped to it.
-// Accessible to "admin" and "marketing_manager" roles (see middleware.ts /
-// src/lib/roles.ts ROUTE_ACCESS).
-
+// src/app/design/tasks/page.tsx
 import { connectDB }      from "@/lib/db/mongoose"
 import { Task }           from "@/models/Task"
+import { User }           from "@/models/User"
 import { getCurrentUser } from "@/lib/auth"
 import { redirect }       from "next/navigation"
-import KanbanBoard, { type Task as BoardTask } from "@/components/kanban/KanbanBoard"
+import KanbanBoard, { type Task as BoardTask, type AssigneeOption } from "@/components/kanban/KanbanBoard"
 
-async function getMarketingTasks(): Promise<BoardTask[]> {
+async function getDesignTasks(): Promise<BoardTask[]> {
   await connectDB()
 
   const tasks = await Task.find({ department: "marketing" })
@@ -25,7 +21,7 @@ async function getMarketingTasks(): Promise<BoardTask[]> {
     priority:    (t.priority as BoardTask["priority"]) ?? "medium",
     status:      (t.status as BoardTask["status"]) ?? "backlog",
     assignee:    t.assignee ?? "",
-    clientId:    t.talentId ? t.talentId.toString() : undefined,
+    talentId:    t.talentId ? t.talentId.toString() : undefined,
     tags:        t.tags ?? [],
     due:         t.due ?? "",
     progress:    t.progress ?? 0,
@@ -33,17 +29,43 @@ async function getMarketingTasks(): Promise<BoardTask[]> {
   }))
 }
 
-export default async function MarketingDashboardPage() {
+// Only talents who belong to the design department can show up in the
+// "Assignee" dropdown here. This is what actually enforces "design manager
+// can only assign to design talents" — the board itself just renders
+// whatever list it's given, so the scoping has to happen in this query.
+async function getDesignAssignees(): Promise<AssigneeOption[]> {
+  await connectDB()
+
+  const assignees = await User.find({ role: "talent", department: "marketing" })
+    .select("_id name email department")
+    .lean()
+
+  return assignees.map(u => ({
+    id:         u._id.toString(),
+    name:       u.name,
+    email:      u.email ?? "",
+    department: u.department ?? null,
+  }))
+}
+
+export default async function DesignTasksPage() {
   const user = await getCurrentUser()
 
-  // Middleware already blocks unauthorized roles from reaching this route,
-  // but we re-check here as defense in depth (e.g. direct server-side
-  // rendering, or if middleware config ever drifts from this page).
   if (!user || (user.role !== "admin" && user.role !== "marketing_manager")) {
     redirect("/login")
   }
 
-  const tasks = await getMarketingTasks()
+  const [tasks, assignees] = await Promise.all([
+    getDesignTasks(),
+    getDesignAssignees(),
+  ])
 
-  return <KanbanBoard tasks={tasks} department="marketing" user={{ name: user.name, email: user.email, role: user.role }} />
+  return (
+    <KanbanBoard
+      tasks={tasks}
+      assignees={assignees}
+      department="design"
+      user={{ name: user.name, email: user.email, role: user.role }}
+    />
+  )
 }

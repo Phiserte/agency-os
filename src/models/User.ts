@@ -2,14 +2,17 @@ import mongoose, { Document, Model, Schema } from "mongoose"
 import bcrypt from "bcryptjs"
 import { ROLES, type UserRole } from "@/lib/roles"
 
+export type Department = "marketing" | "design" | "dev"
+
 export interface IUser extends Document {
-  name:      string
-  email:     string
-  password:  string
-  role:      UserRole
-  company:   string
-  createdAt: Date
-  updatedAt: Date
+  name:       string
+  email:      string
+  password:   string
+  role:       UserRole
+  company:    string
+  department: Department | null
+  createdAt:  Date
+  updatedAt:  Date
   comparePassword(candidate: string): Promise<boolean>
 }
 
@@ -32,21 +35,33 @@ const UserSchema = new Schema<IUser>(
       type:      String,
       required:  [true, "Password is required"],
       minlength: [8, "Password must be at least 8 characters"],
-      select:    false, // stripped from all queries by default
+      select:    false,
     },
     role: {
       type:    String,
       enum:    { values: [...ROLES], message: "{VALUE} is not a valid role" },
       default: "talent",
     },
-    company: {
+    
+    department: {
       type:    String,
-      trim:    true,
-      default: "",
+      enum:    {
+        values:  ["marketing", "design", "dev"],
+        message: "{VALUE} is not a valid department",
+      },
+      default: null,
     },
   },
   { timestamps: true }
 )
+
+// Pre-validate hook without callback parameter
+UserSchema.pre("validate", function () {
+  const doc = this as unknown as IUser
+  if (doc.role === "talent" && !doc.department) {
+    doc.invalidate("department", "Talents must be assigned a department (marketing, design, or dev).")
+  }
+})
 
 // Hash password before save
 UserSchema.pre("save", async function () {
@@ -58,6 +73,9 @@ UserSchema.pre("save", async function () {
 UserSchema.methods.comparePassword = async function (candidate: string): Promise<boolean> {
   return bcrypt.compare(candidate, this.password)
 }
+
+// Index so "get all talents in my department" queries are fast
+UserSchema.index({ role: 1, department: 1 })
 
 export const User: Model<IUser> =
   mongoose.models.User ?? mongoose.model<IUser>("User", UserSchema)

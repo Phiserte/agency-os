@@ -29,6 +29,7 @@ import type { Transform } from "@dnd-kit/utilities";
 import TaskDetailModal, { type TaskDetail } from "@/components/Taskdetailmodal";
 import Sidebar from "@/components/Sidebar";
 import { Plus, TrendingUp, Search, Eye, Trash2, Loader2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { type UserRole } from "@/lib/roles";
 
 // ── Palette (matches DashboardPage) ──────────────────────────────────────────
 const P = {
@@ -64,6 +65,15 @@ const P = {
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type Priority = "high" | "medium" | "low";
 export type ColumnId = "backlog" | "todo" | "inprogress" | "review" | "done";
+export type Department = "marketing" | "design" | "dev";
+
+export interface AssigneeOption {
+  id: string;
+  name: string;
+  email?: string;
+  role?: UserRole;
+  department?: Department | null;
+}
 
 export interface Task {
   id: string;
@@ -78,7 +88,7 @@ export interface Task {
   due?: string;
   progress?: number;
   status?: ColumnId;
-  department?: string;
+  department?: Department | null;
   [key: string]: unknown;
 }
 
@@ -95,6 +105,17 @@ interface KanbanBoardProps {
    */
   department?: string;
   /**
+   * Talents this board's manager is allowed to assign tasks to. When
+   * provided, the "New Task" modal uses this list directly instead of
+   * self-fetching from /api/talents (which previously returned every
+   * talent regardless of department). Pass this in from the server page —
+   * e.g. design/tasks/page.tsx queries User.find({ role: "talent",
+   * department: "design" }) and hands the result down here. If omitted,
+   * falls back to fetching /api/talents client-side (used by the admin
+   * board, which should see everyone).
+   */
+  assignees?: AssigneeOption[];
+  /**
    * Current user information for the Sidebar component
    */
   user?: {
@@ -104,7 +125,7 @@ interface KanbanBoardProps {
   };
 }
 
-interface ClientOption { id: string; name: string; email: string; company: string }
+interface ClientOption { id: string; name: string; email: string }
 
 // ── Column config ─────────────────────────────────────────────────────────────
 const COLUMNS: {
@@ -550,8 +571,15 @@ function KanbanColumn({
   );
 }
 
-function AddTaskModal({ defaultCol, onAdd, onClose }: {
-  defaultCol: ColumnId; onAdd: (task: Task) => void; onClose: () => void
+function AddTaskModal({ defaultCol, onAdd, onClose, assignees }: {
+  defaultCol: ColumnId; onAdd: (task: Task) => void; onClose: () => void;
+  /**
+   * Talents allowed for this board. If provided, used directly — no
+   * client-side fetch, and critically, no talents from other departments
+   * ever reach this dropdown. If omitted (e.g. admin board didn't pass
+   * any), falls back to fetching everyone from /api/talents.
+   */
+  assignees?: AssigneeOption[];
 }) {
   const [title,    setTitle]    = useState("");
   const [desc,     setDesc]     = useState("");
@@ -561,17 +589,24 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
   const [due,      setDue]      = useState("");
   const [col,      setCol]      = useState<ColumnId>(defaultCol);
   const [talentId, setTalentId] = useState("");
-  const [clients,  setClients]  = useState<ClientOption[]>([]);
-  const [loadingCl,setLoadingCl]= useState(true);
+  const [clients,  setClients]  = useState<ClientOption[]>(
+    assignees ? assignees.map(a => ({ id: a.id, name: a.name, email: a.email ?? "" })) : []
+  );
+  const [loadingCl,setLoadingCl]= useState(!assignees);
   const [error,    setError]    = useState("");
   const uid = useId();
 
   useEffect(() => {
+    // Scoped assignees were passed in from the server page — nothing to fetch.
+    if (assignees) return;
+
+    // Fallback path only: used when a board doesn't scope assignees itself
+    // (e.g. the admin board, which should be able to assign to anyone).
     fetch("/api/talents")
       .then(r => r.json()).then((d: ClientOption[]) => setClients(d))
       .catch(() => setClients([]))
       .finally(() => setLoadingCl(false));
-  }, []);
+  }, [assignees]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -688,9 +723,11 @@ function AddTaskModal({ defaultCol, onAdd, onClose }: {
                 if (c) setAssignee(c.name);
               }}
               disabled={loadingCl} style={{ ...field, cursor: "pointer" }} onFocus={onFocus} onBlur={onBlur}>
-              <option value="">{loadingCl ? "Loading..." : "Select a talent..."}</option>
+              <option value="">
+                {loadingCl ? "Loading..." : clients.length === 0 ? "No talents in this department" : "Select a talent..."}
+              </option>
               {clients.map(c => (
-                <option key={c.id} value={c.id}>{c.name}{c.company ? ` — ${c.company}` : ""}</option>
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
             {talentId && (
@@ -772,7 +809,7 @@ function Toast({ message, type, onDismiss }: { message: string; type: "error" | 
   );
 }
 
-export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskCreate, department, user }: KanbanBoardProps) {
+export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskCreate, department, assignees, user }: KanbanBoardProps) {
   const [columns,      setColumns]      = useState(() => groupByColumn(propTasks));
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskDetail | null>(null);
@@ -1061,7 +1098,6 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
 
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
-      {/* Dim backdrop behind the mobile sidebar drawer — tap to close */}
       {isMobile && isMobileSidebarOpen && (
         <div
           onClick={() => setIsMobileSidebarOpen(false)}
@@ -1103,10 +1139,6 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         color: P.text, minWidth: 0,
       }}>
-        {/* Header — toggle button lives inline here now, so nothing can
-            float over the logo. Logo is hidden on mobile since there
-            isn't room for logo + title + search + toggle at phone widths;
-            the title alone communicates the same context. */}
         <div style={{
           display: "flex", alignItems: "center", gap: 14,
           padding: isMobile ? "10px 16px" : "12px 28px",
@@ -1200,6 +1232,7 @@ export default function KanbanBoard({ tasks: propTasks = [], onTaskMove, onTaskC
           defaultCol={modalCol}
           onAdd={handleCreateTask}
           onClose={() => setModalCol(null)}
+          assignees={assignees}
         />
       )}
 

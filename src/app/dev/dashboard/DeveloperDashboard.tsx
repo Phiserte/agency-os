@@ -142,7 +142,7 @@ function Pill({ label, bg, color, dot }: { label: string; bg: string; color: str
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 const PAGE_SIZE = 8
 
-export default function DesignDashboard({
+export default function DeveloperDashboard({
   tasks, tableTasks, recentActivity,
   total, openTasks, doneThisWeek, overdueCount,
   dateStr, greet, nowISO, user,
@@ -468,7 +468,7 @@ export default function DesignDashboard({
               background: `linear-gradient(to bottom, ${P.card}, ${P.bg}33)`,
             }}>
               <div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: P.text }}>Design Tasks</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: P.text }}>Dev Tasks</span>
                 <span style={{
                   fontSize: 11, marginLeft: 8, padding: "2px 8px", borderRadius: 20,
                   background: P.purpleDim, color: P.purpleText, fontWeight: 600,
