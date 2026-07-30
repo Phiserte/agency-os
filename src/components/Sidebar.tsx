@@ -100,17 +100,27 @@ export default function Sidebar({ user }: SidebarProps) {
   }
 
   return (
+    // FIX: was position: "sticky". Sticky only stays pinned while its
+    // containing block is on-screen — if ANY parent page fails to clip its
+    // own height to 100vh (e.g. grows taller as tasks are added), this
+    // sidebar detaches once you scroll past that container's bottom and
+    // starts scrolling away with the page (that's the "Logout drifts up on
+    // scroll" bug). position: "fixed" pins it to the actual browser
+    // viewport instead, so it can't be dragged around by a leaky parent —
+    // this makes the sidebar correct on its own, independent of whichever
+    // dashboard page renders it.
     <aside style={{
       width: 240,
       background: P.bg,
       display: "flex",
       flexDirection: "column",
       height: "100vh",
-      position: "sticky",
+      position: "fixed",
       top: 0,
       left: 0,
       flexShrink: 0,
       borderRight: `1px solid ${P.border}`,
+      zIndex: 50,
     }}>
       {/* Brand Header */}
       <div style={{

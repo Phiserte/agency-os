@@ -195,6 +195,12 @@ export default function DeveloperDashboard({
   }, [isMobileSidebarOpen, isMobile])
 
   return (
+    // NOTE: height: "100vh" alone isn't enough to lock this to the viewport —
+    // any flex descendant below that refuses to shrink (default min-height:
+    // auto) will force this whole container taller than 100vh, which makes
+    // the *page* scroll instead of just the content pane, dragging the
+    // sidebar/header along with it. minHeight: 0 is added on every flex: 1
+    // container in this tree to prevent that.
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
       {/* ── Mobile Sidebar Toggle Button ── */}
       {isMobile && (
@@ -241,7 +247,7 @@ export default function DeveloperDashboard({
 
       {/* ── Page Track ── */}
       <div style={{
-        flex: 1, display: "flex", flexDirection: "column",
+        flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
         background: P.bg, overflow: "hidden",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         color: P.text, minWidth: 0,
@@ -313,8 +319,13 @@ export default function DeveloperDashboard({
           </div>
         </header>
 
-        {/* Content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px 14px 32px" : "24px 28px 40px" }}>
+        {/* Content — this is the pane that should scroll when the task
+            list/table grows. minHeight: 0 is the fix: without it, this
+            flex:1 child refuses to shrink below its content height, which
+            forces the Page Track (and the whole 100vh wrapper) to grow
+            past the viewport, making the entire page — sidebar and header
+            included — scroll together instead of staying pinned. */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: isMobile ? "16px 14px 32px" : "24px 28px 40px" }}>
 
           {/* Greeting */}
           <div style={{ marginBottom: 20 }}>
@@ -324,7 +335,7 @@ export default function DeveloperDashboard({
             <p style={{ fontSize: 12, color: P.textSub, margin: "4px 0 0" }}>{dateStr}</p>
           </div>
 
-          {/* ── STAT CARDS — trimmed to what a marketing manager needs ── */}
+          {/* ── STAT CARDS ── */}
           <div style={{
             display: "grid",
             gridTemplateColumns: isMobile ? "repeat(auto-fit, minmax(140px, 1fr))" : "repeat(4, 1fr)",
@@ -334,7 +345,7 @@ export default function DeveloperDashboard({
               {
                 label: "Total Tasks", value: total, icon: CheckSquare,
                 accent: P.purple, accentDim: P.purpleDim,
-                delta: "marketing", up: true, sub: "all time",
+                delta: "dev", up: true, sub: "all time",
               },
               {
                 label: "Open Tasks", value: openTasks, icon: Clock,
@@ -399,7 +410,7 @@ export default function DeveloperDashboard({
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>Recent Activity</div>
-                <div style={{ fontSize: 12, color: P.textSub, marginTop: 2 }}>Live feed of marketing task updates</div>
+                <div style={{ fontSize: 12, color: P.textSub, marginTop: 2 }}>Live feed of dev task updates</div>
               </div>
             </div>
 
@@ -451,9 +462,7 @@ export default function DeveloperDashboard({
                 })}
               </div>
             )}
-          </div> 
-          
-          
+          </div>
 
           {/* ── TASK TABLE ── */}
           <div style={{
@@ -553,9 +562,46 @@ export default function DeveloperDashboard({
                 </tbody>
               </table>
             </div>
+
+            {totalPages > 1 && (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "12px 20px", borderTop: `1px solid ${P.border}`,
+              }}>
+                <span style={{ fontSize: 12, color: P.textMute }}>
+                  Page {page} of {totalPages}
+                </span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    style={{
+                      fontSize: 12, padding: "5px 12px", borderRadius: 7,
+                      border: `1px solid ${P.border}`, background: P.card,
+                      color: page === 1 ? P.textMute : P.text,
+                      cursor: page === 1 ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    style={{
+                      fontSize: 12, padding: "5px 12px", borderRadius: 7,
+                      border: `1px solid ${P.border}`, background: P.card,
+                      color: page === totalPages ? P.textMute : P.text,
+                      cursor: page === totalPages ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   )
-} 
+}
